@@ -45,11 +45,13 @@ export function ScansView({
   targets,
   openNew,
   preselected,
+  authorizedIds,
 }: {
   scans: Scan[];
   targets: Target[];
   openNew: boolean;
   preselected: string[];
+  authorizedIds: string[];
 }) {
   const [creating, setCreating] = useState(openNew);
   const close = useCallback(() => setCreating(false), []);
@@ -115,7 +117,7 @@ export function ScansView({
         </Table>
       )}
 
-      <NewScanModal open={creating} onClose={close} targets={targets} preselected={preselected} />
+      <NewScanModal open={creating} onClose={close} targets={targets} preselected={preselected} authorizedIds={authorizedIds} />
     </div>
   );
 }

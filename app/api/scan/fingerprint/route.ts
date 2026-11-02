@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizationGuard } from "@/lib/scans/route-guard";
 import { fingerprint } from "@/lib/recon/fingerprint";
 import { resolveIntensity } from "@/lib/recon/intensity";
 import type { LiveHost } from "@/types/recon";
@@ -27,6 +28,10 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  // Server-side authorization: every requested host must be local, attested or verified.
+  const denied = authorizationGuard(hosts as unknown[]);
+  if (denied) return denied;
 
   try {
     const fingerprints = await fingerprint(

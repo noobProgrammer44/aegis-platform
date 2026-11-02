@@ -1,4 +1,5 @@
 import { runNucleiStream } from "@/lib/recon/nuclei";
+import { authorizationGuard } from "@/lib/scans/route-guard";
 import { resolveIntensity } from "@/lib/recon/intensity";
 import type { LiveHost, NucleiEvent } from "@/types/recon";
 
@@ -24,6 +25,10 @@ export async function POST(request: Request) {
   if (!Array.isArray(liveHosts)) {
     return Response.json({ error: "Expected a 'liveHosts' array." }, { status: 400 });
   }
+
+  // Server-side authorization: every requested host must be local, attested or verified.
+  const denied = authorizationGuard(liveHosts as unknown[]);
+  if (denied) return denied;
   // Authorization guard is a hard rejection (not graceful) — reject before streaming.
   if (activeAllowed !== true) {
     return Response.json(

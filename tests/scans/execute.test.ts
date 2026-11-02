@@ -10,6 +10,7 @@ import { createTarget, getTarget } from "@/lib/db/repos/targets";
 import { executeScan } from "@/lib/scans/execute";
 import type { Scanner, ScannerOutput } from "@/lib/scans/scanners";
 import { queueDueSchedules } from "@/lib/scans/scheduler";
+import { attestTarget } from "@/lib/services/authorization";
 import type { DetectedRisk, Target } from "@/types/aegis";
 import { useMemoryDb, WS } from "../db/helpers";
 
@@ -81,8 +82,17 @@ describe("executeScan", () => {
 
     expect(calls).toBe(0);
     expect(done?.state).toBe("BLOCKED");
-    expect(done?.skippedTargets[0].reason).toMatch(/local and private-network/);
+    expect(done?.skippedTargets[0].reason).toMatch(/Not authorized/);
     expect(listAudit(db(), WS, { action: "scan.blocked" })).toHaveLength(1);
+  });
+
+  it("runs active scanners on an external target once it is attested", async () => {
+    const external = createTarget(db(), WS, { target: "example.com", kind: "domain" });
+    attestTarget(db(), WS, external, "local user", "We own it");
+    const scanner = fakeScanner("active", (target) => ({ risks: [risk(target, "a")], discovered: [], raw: null }));
+    const done = await executeScan(db(), queue([external]), signal(), { SURFACE: scanner });
+    expect(done?.state).toBe("SUCCEEDED");
+    expect(listRisks(db(), WS)).toHaveLength(1);
   });
 
   it("runs passive scanners on any target and saves discovered domains", async () => {

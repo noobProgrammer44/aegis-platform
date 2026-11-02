@@ -40,7 +40,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
       health score (0-1000, A-F, tier floors + diminishing returns), risk lifecycle
       (new_open / still_open / closed / reopened), acceptance rule matcher,
       schedule next-run.
-- [ ] 3. (DEFERRED: paused in the 2026-11-02 session, pick up with Kartik) Server-side authorization service (tiers, attest, DNS TXT verify, local
+- [x] 3. Server-side authorization service (tiers, attest, DNS TXT verify, local
       auto-auth, audit log) and enforce it in the existing `/api/scan/*` routes.
 
 ### Scan engine
@@ -181,3 +181,16 @@ Feature research: `docs/hostedscan-reference/README.md`.
 - 2026-11-03: Integrations page is a labelled PREVIEW (item 14 still open): cards and
   setup dialogs for email, Slack, Teams, PagerDuty, webhooks, Jira, AWS, Azure; save
   and test are disabled and nothing is stored or sent.
+- 2026-11-03: merged Amaan's origin/main fce5f79 (opt-in proxy via PROXY_URL /
+  PROXY_LIST, WAF / block detection). Flagged to Kartik: proxy *rotation* reads as
+  block evasion; nothing new builds on it.
+- 2026-11-03: item 3 done. `lib/domain/authorization.ts` (tiers: 0 passive, 1
+  attested, 2 DNS-verified or local; domain scopes cover subdomains, CIDR covers
+  contained ranges; TXT token check), `lib/services/authorization.ts` (attest, issue
+  / check DNS token with injectable resolver, revoke, all audit-logged), scan gate now
+  uses the records, quick-scan routes (`/api/scan/probe|ports|fingerprint|analysis|
+  nuclei`) refuse any unauthorized host with 403 via `lib/scans/route-guard.ts`
+  whatever `activeAllowed` says. UI: Authorization panel in the target drawer,
+  badge column in the targets table, New scan dialog uses server authorization.
+  Verified: 403 for an unauthorized host, 200 for local, real DNS TXT lookup, attest
+  flow in the browser (demo DB, to keep the real audit log honest).

@@ -13,7 +13,9 @@ import {
   type TargetRow,
   type TargetSort,
 } from "@/lib/domain/target-table";
+import type { TargetAuthView } from "@/lib/services/targets";
 import { timeAgo } from "@/lib/ui/format";
+import { AuthBadge } from "./authorization-panel";
 import { THREAT_LEVELS, type HealthGrade } from "@/types/aegis";
 
 const SELECT =
@@ -34,7 +36,7 @@ function RiskCounts({ row }: { row: TargetRow }) {
   );
 }
 
-function Row({ row, onOpen }: { row: TargetRow; onOpen: (id: string) => void }) {
+function Row({ row, auth, onOpen }: { row: TargetRow; auth: TargetAuthView | undefined; onOpen: (id: string) => void }) {
   const t = row.target;
   return (
     <TR className="cursor-pointer" onClick={() => onOpen(t.id)}>
@@ -62,6 +64,7 @@ function Row({ row, onOpen }: { row: TargetRow; onOpen: (id: string) => void }) 
         )}
       </TD>
       <TD><RiskCounts row={row} /></TD>
+      <TD>{auth && <AuthBadge auth={auth} />}</TD>
       <TD>{row.discoveredCount > 0 ? <Chip tone="accent">{row.discoveredCount}</Chip> : <span className="text-text-faint">0</span>}</TD>
       <TD className="capitalize text-text-dim">{t.source}</TD>
       <TD className="whitespace-nowrap text-text-dim">{t.lastScannedAt ? timeAgo(t.lastScannedAt) : "Never"}</TD>
@@ -69,7 +72,15 @@ function Row({ row, onOpen }: { row: TargetRow; onOpen: (id: string) => void }) 
   );
 }
 
-export function TargetsTable({ rows, onOpen }: { rows: TargetRow[]; onOpen: (id: string) => void }) {
+export function TargetsTable({
+  rows,
+  auth,
+  onOpen,
+}: {
+  rows: TargetRow[];
+  auth: Record<string, TargetAuthView>;
+  onOpen: (id: string) => void;
+}) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<TargetSort>("health");
   const [grouping, setGrouping] = useState<TargetGrouping>("none");
@@ -134,13 +145,14 @@ export function TargetsTable({ rows, onOpen }: { rows: TargetRow[]; onOpen: (id:
                   <TH>Target</TH>
                   <TH>Health</TH>
                   <TH>Open risks</TH>
+                  <TH>Authorization</TH>
                   <TH>Discovered</TH>
                   <TH>Source</TH>
                   <TH>Last scanned</TH>
                 </tr>
               </THead>
               <TBody>
-                {group.rows.map((row) => <Row key={row.target.id} row={row} onOpen={onOpen} />)}
+                {group.rows.map((row) => <Row key={row.target.id} row={row} auth={auth[row.target.id]} onOpen={onOpen} />)}
               </TBody>
             </Table>
           </div>

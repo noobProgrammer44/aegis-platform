@@ -4,11 +4,12 @@ import { appendAudit } from "@/lib/db/repos/audit-log";
 import { upsertDiscoveredDomain } from "@/lib/db/repos/discovered-domains";
 import { listRisks, saveRisks } from "@/lib/db/repos/risks";
 import { addScanResult } from "@/lib/db/repos/scan-results";
+import { listVerifiedAuthorizations } from "@/lib/db/repos/authorizations";
 import { getScan, updateScan } from "@/lib/db/repos/scans";
 import { getTarget } from "@/lib/db/repos/targets";
 import { mergeScanRisks } from "@/lib/domain/risk-lifecycle";
 import type { ScanIntensity } from "@/lib/recon/intensity";
-import type { DetectedRisk, Scan, ScanType, Target } from "@/types/aegis";
+import type { Authorization, DetectedRisk, Scan, ScanType, Target } from "@/types/aegis";
 import { activeScanAllowed } from "./gate";
 import { newRiskId, recomputeHealth } from "./health";
 import type { Scanner, ScannerOutput } from "./scanners";
@@ -28,12 +29,13 @@ type TargetOutcome =
 async function runTarget(
   scanner: Scanner,
   target: Target,
+  authorizations: readonly Authorization[],
   intensity: ScanIntensity,
   signal: AbortSignal,
   progress: (message: string) => void,
 ): Promise<TargetOutcome> {
   if (scanner.mode === "active") {
-    const gate = activeScanAllowed(target);
+    const gate = activeScanAllowed(target, authorizations);
     if (!gate.allowed) return { target, label: target.target, skipped: gate.reason ?? "Not authorized.", blocked: true };
   }
   try {
@@ -63,6 +65,8 @@ export async function executeScan(
   update({ state: "RUNNING", startedAt: nowIso(), progress: 0, progressMessage: "Starting" });
   appendAudit(db, ws, { actor: ACTOR, action: "scan.started", subject: queued.id, details: { type: queued.type, targets: queued.targets } });
 
+  // Read once per scan: an authorization revoked mid-scan applies from the next scan.
+  const authorizations = listVerifiedAuthorizations(db, ws);
   const outcomes: TargetOutcome[] = [];
   for (const [index, targetId] of queued.targetIds.entries()) {
     if (signal.aborted) break;
@@ -71,7 +75,7 @@ export async function executeScan(
       update({ progress: Math.round((index / queued.targetIds.length) * 90), progressMessage: `${target?.target ?? targetId}: ${message}` });
     outcomes.push(
       target
-        ? await runTarget(scanner, target, queued.intensity, signal, step)
+        ? await runTarget(scanner, target, authorizations, queued.intensity, signal, step)
         : { target: null, label: queued.targets[index] ?? targetId, skipped: "Target was deleted.", blocked: false },
     );
   }

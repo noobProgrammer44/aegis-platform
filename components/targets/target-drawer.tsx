@@ -9,7 +9,8 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { HealthGauge } from "@/components/ui/gauge";
 import { Drawer } from "@/components/ui/overlays";
 import type { TargetRow } from "@/lib/domain/target-table";
-import type { TargetDetail } from "@/lib/services/targets";
+import type { TargetAuthView, TargetDetail } from "@/lib/services/targets";
+import { AuthorizationPanel } from "./authorization-panel";
 import { cx } from "@/lib/ui/cx";
 import { SCAN_STATE_LABEL, SCAN_TYPE_LABEL, timeAgo } from "@/lib/ui/format";
 import { SEVERITY_TONE } from "@/lib/ui/severity";
@@ -132,10 +133,12 @@ function MetadataTab({ row }: { row: TargetRow }) {
 export function TargetDrawer({
   row,
   detail,
+  auth,
   onClose,
 }: {
   row: TargetRow | null;
   detail: TargetDetail | undefined;
+  auth: TargetAuthView | undefined;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("risks");
@@ -181,6 +184,12 @@ export function TargetDrawer({
           </Button>
         )}
       </div>
+
+      {auth && (
+        <div className="mt-5">
+          <AuthorizationPanel key={`${t.id}-${auth.tier}-${auth.pendingDnsValue ?? ""}`} targetId={t.id} auth={auth} />
+        </div>
+      )}
 
       <div className="mt-5 grid items-center gap-5 sm:grid-cols-[200px_1fr]">
         <HealthGauge score={t.health.score} grade={t.health.grade} />

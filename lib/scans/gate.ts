@@ -1,24 +1,21 @@
-import { parseTarget } from "@/lib/domain/targets";
-import type { Target } from "@/types/aegis";
+import { ACTIVE_SCAN_MIN_TIER, targetAuthorization } from "@/lib/domain/authorization";
+import type { Authorization, Target } from "@/types/aegis";
 
 /**
  * Server-side check before any ACTIVE scanner touches a target. The browser never
- * decides this.
- *
- * Until attestation and DNS ownership verification exist (plan item 3), the only
- * targets authorized automatically are the ones on your own machine or network:
- * loopback, RFC 1918 private and link-local addresses, and local hostnames. Everything
- * else is skipped with the reason below. Passive scanners don't call this.
+ * decides this. A target needs to be local / private-network, attested, or
+ * DNS-verified (lib/domain/authorization.ts). Passive scanners don't call this.
  */
 
 export const NOT_AUTHORIZED_REASON =
-  "Active scans currently run only on local and private-network targets. " +
-  "Ownership verification for other targets isn't available yet.";
+  "Not authorized for active scanning. Confirm you're authorized or verify ownership on the Targets page.";
 
-export function activeScanAllowed(target: Pick<Target, "target">): { allowed: boolean; reason: string | null } {
-  const parsed = parseTarget(target.target);
-  if (!parsed.ok) return { allowed: false, reason: parsed.error };
-  return parsed.target.isLocal
+export function activeScanAllowed(
+  target: Pick<Target, "target">,
+  records: readonly Authorization[],
+): { allowed: boolean; reason: string | null } {
+  const auth = targetAuthorization(target, records);
+  return auth.tier >= ACTIVE_SCAN_MIN_TIER
     ? { allowed: true, reason: null }
     : { allowed: false, reason: NOT_AUTHORIZED_REASON };
 }

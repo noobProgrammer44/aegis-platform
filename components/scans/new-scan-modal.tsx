@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/overlays";
 import { SEGMENT_FRAME, segmentClass } from "@/components/ui/segmented";
 import { INITIAL_RESULT } from "@/lib/actions/result";
-import { parseTarget } from "@/lib/domain/targets";
 import { INTENSITY_PROFILES, type ScanIntensity } from "@/lib/recon/intensity";
 import { AVAILABLE_SCANNERS } from "@/lib/scans/catalog";
 import { cx } from "@/lib/ui/cx";
@@ -15,21 +14,19 @@ import type { Target } from "@/types/aegis";
 
 const INTENSITY_ORDER: ScanIntensity[] = ["polite", "normal", "aggressive"];
 
-const isLocal = (t: Target) => {
-  const parsed = parseTarget(t.target);
-  return parsed.ok && parsed.target.isLocal;
-};
-
 export function NewScanModal({
   open,
   onClose,
   targets,
   preselected,
+  authorizedIds,
 }: {
   open: boolean;
   onClose: () => void;
   targets: Target[];
   preselected: string[];
+  /** Targets the server says active scanners may touch (local, attested or verified). */
+  authorizedIds: string[];
 }) {
   const [result, formAction, pending] = useActionState(startScanAction, INITIAL_RESULT);
   const [types, setTypes] = useState<string[]>(["SURFACE"]);
@@ -44,8 +41,8 @@ export function NewScanModal({
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
   const anyActive = AVAILABLE_SCANNERS.some((s) => s.mode === "active" && types.includes(s.type));
   const blocked = useMemo(
-    () => targets.filter((t) => selected.includes(t.id) && !isLocal(t)),
-    [targets, selected],
+    () => targets.filter((t) => selected.includes(t.id) && !authorizedIds.includes(t.id)),
+    [targets, selected, authorizedIds],
   );
 
   return (
@@ -127,8 +124,8 @@ export function NewScanModal({
           )}
           {anyActive && blocked.length > 0 && (
             <p className="mt-2 rounded-lg border border-caution-border bg-caution-bg px-3 py-2 text-xs text-caution">
-              Active scanners will skip {blocked.map((t) => t.target).join(", ")}. For now they only run on
-              local and private-network targets.
+              Active scanners will skip {blocked.map((t) => t.target).join(", ")}: not authorized yet. Open the
+              target on the Targets page to confirm you&apos;re authorized or verify ownership.
             </p>
           )}
         </fieldset>

@@ -66,7 +66,7 @@ export function TargetsView({ data, tab }: { data: TargetsPageData; tab: Targets
           action={<Button variant="primary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Add targets</Button>}
         />
       ) : (
-        <TargetsTable rows={data.rows} onOpen={setSelectedId} />
+        <TargetsTable rows={data.rows} auth={data.auth} onOpen={setSelectedId} />
       )}
 
       <AddTargetModal open={adding} onClose={closeAdd} />
@@ -74,6 +74,7 @@ export function TargetsView({ data, tab }: { data: TargetsPageData; tab: Targets
         key={selectedId ?? "none"}
         row={selected}
         detail={selectedId ? data.details[selectedId] : undefined}
+        auth={selectedId ? data.auth[selectedId] : undefined}
         onClose={closeDrawer}
       />
     </div>

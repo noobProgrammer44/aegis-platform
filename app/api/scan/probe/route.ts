@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizationGuard } from "@/lib/scans/route-guard";
 import { probe } from "@/lib/recon/probe";
 import { resolveIntensity } from "@/lib/recon/intensity";
 import type { Subdomain } from "@/types/recon";
@@ -28,6 +29,10 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  // Server-side authorization: every requested host must be local, attested or verified.
+  const denied = authorizationGuard(subdomains as unknown[]);
+  if (denied) return denied;
 
   try {
     const liveHosts = await probe(

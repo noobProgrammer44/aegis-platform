@@ -74,12 +74,34 @@ describe("hosts for a target", () => {
 });
 
 describe("active scan gate", () => {
-  it("allows only local and private-network targets for now", () => {
-    expect(activeScanAllowed({ target: "localhost:3100" }).allowed).toBe(true);
-    expect(activeScanAllowed({ target: "http://127.0.0.1:3100" }).allowed).toBe(true);
-    expect(activeScanAllowed({ target: "192.168.1.0/28" }).allowed).toBe(true);
-    const external = activeScanAllowed({ target: "example.com" });
+  const attested = {
+    id: "aut_1", workspaceId: "ws_default", scope: "example.com", method: "attested" as const, token: null,
+    verified: true, attestedBy: "local user", note: null, createdAt: "", verifiedAt: "",
+  };
+
+  it("allows local targets and anything an authorization covers", () => {
+    expect(activeScanAllowed({ target: "localhost:3100" }, []).allowed).toBe(true);
+    expect(activeScanAllowed({ target: "http://127.0.0.1:3100" }, []).allowed).toBe(true);
+    expect(activeScanAllowed({ target: "192.168.1.0/28" }, []).allowed).toBe(true);
+    expect(activeScanAllowed({ target: "https://app.example.com" }, [attested]).allowed).toBe(true);
+  });
+
+  it("refuses external targets with no authorization, or only a pending one", () => {
+    const external = activeScanAllowed({ target: "example.com" }, []);
     expect(external.allowed).toBe(false);
-    expect(external.reason).toMatch(/local and private-network/);
+    expect(external.reason).toMatch(/Not authorized/);
+    expect(activeScanAllowed({ target: "example.com" }, [{ ...attested, verified: false }]).allowed).toBe(false);
+  });
+});
+
+describe("quick-scan route hosts", () => {
+  it("reads hosts from discovery names and live-host URLs, skipping junk", async () => {
+    const { requestedHosts } = await import("@/lib/scans/route-guard");
+    expect(requestedHosts([{ name: "api.example.com" }, { url: "http://localhost:3100/" }, { url: "https://a.test:8443/x" }])).toEqual([
+      "api.example.com",
+      "localhost:3100",
+      "a.test:8443",
+    ]);
+    expect(requestedHosts([null, 42, { url: "not a url://" }, { name: "" }])).toEqual([]);
   });
 });
