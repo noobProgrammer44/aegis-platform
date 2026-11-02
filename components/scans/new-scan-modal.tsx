@@ -20,6 +20,7 @@ export function NewScanModal({
   targets,
   preselected,
   authorizedIds,
+  unavailable,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,8 @@ export function NewScanModal({
   preselected: string[];
   /** Targets the server says active scanners may touch (local, attested or verified). */
   authorizedIds: string[];
+  /** Scan types that can't run right now, with the reason (e.g. Docker not running). */
+  unavailable: Record<string, string>;
 }) {
   const [result, formAction, pending] = useActionState(startScanAction, INITIAL_RESULT);
   const [types, setTypes] = useState<string[]>(["SURFACE"]);
@@ -68,8 +71,9 @@ export function NewScanModal({
               <label
                 key={s.type}
                 className={cx(
-                  "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3",
-                  types.includes(s.type) ? "border-accent/50 bg-accent/[0.06]" : "border-border hover:bg-white/[0.02]",
+                  "flex items-start gap-3 rounded-lg border px-4 py-3",
+                  unavailable[s.type] ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+                  types.includes(s.type) ? "border-accent/50 bg-accent/[0.06]" : "border-border hover:bg-row-hover",
                 )}
               >
                 <input
@@ -77,6 +81,7 @@ export function NewScanModal({
                   name="scanTypes"
                   value={s.type}
                   checked={types.includes(s.type)}
+                  disabled={Boolean(unavailable[s.type])}
                   onChange={() => setTypes(toggle(types, s.type))}
                   className="mt-1"
                 />
@@ -86,6 +91,7 @@ export function NewScanModal({
                     <Chip tone={s.mode === "passive" ? "accent" : "neutral"}>{s.mode}</Chip>
                   </span>
                   <span className="mt-0.5 block text-xs text-text-dim">{s.description}</span>
+                  {unavailable[s.type] && <span className="mt-1 block text-xs text-caution">Unavailable: {unavailable[s.type]}</span>}
                 </span>
               </label>
             ))}

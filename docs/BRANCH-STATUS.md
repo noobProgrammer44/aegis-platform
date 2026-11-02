@@ -36,6 +36,7 @@ npm test                        # 161 tests
 | Ownership verification: attest / DNS TXT / local, enforced server-side | `lib/domain/authorization.ts`, `lib/services/authorization.ts`, `lib/scans/gate.ts`, `lib/scans/route-guard.ts` | unit + service tests (fake DNS); live: `/api/scan/probe` returns 403 for an unauthorized host even with `activeAllowed: true`, 200 for localhost; real TXT lookup; attest flow in the browser |
 | Dashboard, Targets, Scans, Risks, Reports, Audit log, Help | `app/(app)/*`, `components/*` | each screen checked in the browser on real data; actions (add / accept / rules / generate report / CSV + JSON downloads) exercised |
 | Quick scan after merging Jay + Amaan | `app/(app)/quick-scan` | full scan of `localhost:3100` in the browser, report download via API |
+| 5 new scanners: TLS, JS secrets & source maps, OWASP ZAP baseline / full, email security (SPF / DMARC), domain takeover | `lib/scans/checks/*`, `lib/scans/scanners/extra.ts` | 17 unit tests on the pure parts; live through the Scans page: TLS found a self-signed + expiring cert on a local HTTPS server, JS secrets found a planted fake key (stored masked only) and a source map, ZAP baseline produced 9 findings on Juice Shop, email / takeover ran on example.com; unauthorized targets skipped with reasons |
 | Integrations | `app/(app)/integrations` | **preview mock only**, nothing saved or sent |
 
 Gate before every commit: `npx tsc --noEmit`, `npm run lint`, `npm test`,
@@ -64,9 +65,7 @@ Gate before every commit: `npx tsc --noEmit`, `npm run lint`, `npm test`,
 
 ## Open work
 
-Five new scanners (TLS, email security, domain takeover, JS secrets / source maps,
-OWASP ZAP; in progress, scanner folder already split for them); a screen to create
-schedules; AI summary via OpenRouter (needs `OPENROUTER_API_KEY`; Amaan's Markdown
+ZAP full scan not run live yet (baseline was); a screen to create schedules; AI summary via OpenRouter (needs `OPENROUTER_API_KEY`; Amaan's Markdown
 report already has an `aiSummary` slot); real integrations; settings / API keys /
 REST API; trend charts; workspace switcher.
 

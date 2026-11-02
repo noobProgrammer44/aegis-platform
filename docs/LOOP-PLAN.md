@@ -48,7 +48,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
       and adapters for the existing pipeline: Web surface (probe + fingerprint +
       headers + TLS expiry + exposed paths), Nuclei, Subdomain discovery (crt.sh +
       subfinder) feeding "Discovered domains".
-- [ ] 5. More scanners: Nmap TCP port scan, TLS/SSL (sslyze, Node fallback),
+- [x] 5. More scanners: Nmap TCP port scan, TLS/SSL (sslyze, Node fallback),
       Email security (SPF / DMARC / MX), Domain takeover (dangling CNAME), JS
       secrets + source maps ("vibe-code leaks"), OWASP ZAP baseline + full (Docker).
 - [x] 6. Scan runner + queue (QUEUED -> RUNNING -> SUCCEEDED / FAILED / STOPPED,
@@ -194,3 +194,14 @@ Feature research: `docs/hostedscan-reference/README.md`.
   badge column in the targets table, New scan dialog uses server authorization.
   Verified: 403 for an unauthorized host, 200 for local, real DNS TXT lookup, attest
   flow in the browser (demo DB, to keep the real audit log honest).
+- 2026-11-03: item 5 done. `lib/scans/checks/`: `tls.ts` (pure Node: expiry, trust,
+  hostname, key size, legacy TLS 1.0/1.1), `email.ts` (SPF / DMARC), `takeover.ts`
+  (dangling CNAMEs to ~25 hosted services, target + discovered subdomains),
+  `js-secrets.ts` (10 key formats incl. Supabase service_role JWT, masked storage,
+  source maps), `zap.ts` (Docker baseline / full, JSON report parsing; work dir under
+  data/zap-runs because Docker Desktop doesn't share the OS temp dir).
+  `lib/scans/tools.ts` (no-shell command runner, Docker / image checks) covers the tool
+  resolver part of item 4 (subfinder still not wired). New scan dialog greys out
+  Docker scanners when Docker or the image is missing. Content checks use an undici
+  agent that accepts bad certificates (TLS issues are reported by the TLS scanner).
+  Live-tested on the real DB (fixture target removed afterwards).

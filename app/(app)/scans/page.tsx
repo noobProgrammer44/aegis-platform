@@ -5,6 +5,7 @@ import { listVerifiedAuthorizations } from "@/lib/db/repos/authorizations";
 import { listScans } from "@/lib/db/repos/scans";
 import { listTargets } from "@/lib/db/repos/targets";
 import { ACTIVE_SCAN_MIN_TIER, targetAuthorization } from "@/lib/domain/authorization";
+import { unavailableScanners } from "@/lib/scans/availability";
 import { currentWorkspaceId } from "@/lib/workspace";
 
 export const metadata: Metadata = { title: "Scans" };
@@ -30,6 +31,7 @@ export default async function ScansPage({
       openNew={params.new === "1"}
       preselected={preselected}
       authorizedIds={authorizedIds}
+      unavailable={await unavailableScanners()}
     />
   );
 }

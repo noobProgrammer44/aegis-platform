@@ -81,7 +81,15 @@ AEGIS_DB_PATH=data/demo.db npm run dev -- -p 3001
 | Port scan | active | TCP connect to ~90 common ports; exposed databases / admin services rated HIGH |
 | Nuclei vulnerability | active | Docker; scoped templates (medium+, exposures, misconfig, default logins) |
 | Subdomain discovery | passive | certificate transparency (crt.sh) + DNS; results go to Targets → Discovered |
-| TLS, Email security, Domain takeover, JS secrets, ZAP | — | being built (see status) |
+| TLS / SSL | active | certificate expiry, trust chain, hostname match, weak keys, legacy TLS 1.0 / 1.1 (pure Node) |
+| JS secrets & source maps | active | API keys / private keys in first-party JavaScript (stored masked, never in full) and downloadable `.map` files |
+| OWASP ZAP baseline | active | Docker (`zaproxy/zap-stable`); crawls the site and applies ZAP's passive rules |
+| OWASP ZAP full scan | active | Docker; ZAP's active scan sends attack payloads, slow and intrusive |
+| Email security | passive | SPF and DMARC records (DNS only) |
+| Domain takeover | passive | CNAMEs pointing at deleted S3 / GitHub Pages / Heroku / Azure / … resources, for the target and its discovered subdomains (DNS only) |
+
+Scanners that need Docker show as unavailable in the New scan dialog when Docker
+isn't running or the image is missing.
 
 ---
 
@@ -137,7 +145,7 @@ npm run seed:demo        # sample data into data/demo.db
 | ✅ | App shell + Jay's design system, Dashboard, Quick scan, Targets, Scans, Risks, Reports, Audit log |
 | ✅ | Scan engine: queue (2 at a time), stop, restart recovery, raw results, scheduler (runs scheduled scans every 30 s) |
 | ✅ | Ownership verification (attest / DNS TXT / local) enforced server-side |
-| 🚧 | New scanners: TLS, email security, domain takeover, JS secrets & source maps, OWASP ZAP |
+| ✅ | 10 scanners: web surface, ports, nuclei, discovery, TLS, JS secrets, ZAP baseline + full, email security, domain takeover |
 | 🚧 | Scans: screen to create schedules (the scheduler itself works) |
 | 🔲 | AI summary via OpenRouter (needs a key) |
 | 🔲 | Real integrations (webhooks, Slack, email); Settings, API keys, REST API |
@@ -180,6 +188,7 @@ input, no secrets in code. Architecture notes for contributors are in `CLAUDE.md
 | Port 3000 already in use | run Aegis with `-p 3001` and Juice Shop on 3100 |
 | "Active scanning is not authorized" | open the target on **Targets** and confirm authorization or verify DNS |
 | nuclei finds nothing | Docker running? Run the template update command above |
+| ZAP is unavailable | start Docker and `docker pull zaproxy/zap-stable`; ZAP writes to `data/zap-runs/` (inside the project so Docker Desktop can share it) |
 | `httpx` behaves oddly | a Python `httpx` CLI can shadow ProjectDiscovery's; use `~/go/bin/httpx` |
 | Build breaks while dev runs | stop the dev server before `npm run build` |
 | Want a clean slate | stop the app and delete `data/aegis.db*` |

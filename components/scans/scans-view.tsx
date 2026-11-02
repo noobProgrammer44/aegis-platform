@@ -46,12 +46,14 @@ export function ScansView({
   openNew,
   preselected,
   authorizedIds,
+  unavailable,
 }: {
   scans: Scan[];
   targets: Target[];
   openNew: boolean;
   preselected: string[];
   authorizedIds: string[];
+  unavailable: Record<string, string>;
 }) {
   const [creating, setCreating] = useState(openNew);
   const close = useCallback(() => setCreating(false), []);
@@ -117,7 +119,7 @@ export function ScansView({
         </Table>
       )}
 
-      <NewScanModal open={creating} onClose={close} targets={targets} preselected={preselected} authorizedIds={authorizedIds} />
+      <NewScanModal open={creating} onClose={close} targets={targets} preselected={preselected} authorizedIds={authorizedIds} unavailable={unavailable} />
     </div>
   );
 }
