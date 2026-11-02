@@ -13,6 +13,7 @@
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "cheerio": "^1.2.0",
+    "lucide-react": "^1.66.0",
     "next": "15.5.28",
     "p-limit": "^7.3.3",
     "react": "19.1.0",

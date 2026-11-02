@@ -40,7 +40,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
       health score (0-1000, A-F, tier floors + diminishing returns), risk lifecycle
       (new_open / still_open / closed / reopened), acceptance rule matcher,
       schedule next-run.
-- [ ] 3. Server-side authorization service (tiers, attest, DNS TXT verify, local
+- [ ] 3. (DEFERRED: paused in the 2026-11-02 session, pick up with Kartik) Server-side authorization service (tiers, attest, DNS TXT verify, local
       auto-auth, audit log) and enforce it in the existing `/api/scan/*` routes.
 
 ### Scan engine
@@ -56,7 +56,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
       scheduled scans via `instrumentation.ts`.
 
 ### UI
-- [ ] 7. App shell: sidebar (Dashboard, Targets, Scans, Risks, Reports,
+- [x] 7. App shell: sidebar (Dashboard, Targets, Scans, Risks, Reports,
       Integrations, Settings, Audit log; Quick scan, API docs, Help), collapse,
       shared UI kit (buttons, tiles, chips, drawer, modal, table, gauge); move the
       old single page to `/quick-scan`.
@@ -114,3 +114,12 @@ Feature research: `docs/hostedscan-reference/README.md`.
   never overridden), `risk-lifecycle.ts` (new / still open / reopened / closed, only
   closes same-scanner risks on scanned targets), `schedule.ts` (anchored next run, UTC,
   month-end clamping). 45 new tests, 98 total.
+- 2026-11-02: item 3 deferred (the session's replies on it kept getting cut off;
+  resume it together with Kartik). Items 4-6 still open.
+- 2026-11-02: item 7 done. `app/(app)/` route group with `components/shell/sidebar.tsx`
+  (collapse remembered in localStorage, active link, workspace label), UI kit in
+  `components/ui/` (button, card / page header / empty state, chips + severity and
+  grade badges, severity tiles + stat bars, table, drawer + modal, health gauge), grade
+  colour tokens. Old page moved to `/quick-scan`, `/` redirects to `/dashboard`.
+  Dashboard already shows real health + severity counts from the database; other
+  sections show empty states. `lucide-react` added. Checked in the browser at 1440px.

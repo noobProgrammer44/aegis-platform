@@ -36,6 +36,14 @@
   --signal-high: #e2763b;
   --signal-critical: #e5544f;
   --signal-live: #46a758;
+  --signal-closed: #6b7684;
+
+  /* Health grades — green through red, A to F */
+  --grade-a: #46a758;
+  --grade-b: #8fb54a;
+  --grade-c: #d9a441;
+  --grade-d: #e2763b;
+  --grade-f: #e5544f;
 }
 
 @theme inline {
@@ -66,6 +74,13 @@
   --color-signal-high: var(--signal-high);
   --color-signal-critical: var(--signal-critical);
   --color-signal-live: var(--signal-live);
+  --color-signal-closed: var(--signal-closed);
+
+  --color-grade-a: var(--grade-a);
+  --color-grade-b: var(--grade-b);
+  --color-grade-c: var(--grade-c);
+  --color-grade-d: var(--grade-d);
+  --color-grade-f: var(--grade-f);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
