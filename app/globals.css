@@ -211,3 +211,49 @@ body::before {
     animation-duration: 1ms;
   }
 }
+
+/* ---------- Print (reports) ---------- */
+
+@media print {
+  :root {
+    color-scheme: light;
+    --canvas: #ffffff;
+    --surface: #ffffff;
+    --surface-raised: #eef2f7;
+    --control: #ffffff;
+    --border: rgba(15, 23, 42, 0.16);
+    --border-soft: rgba(15, 23, 42, 0.1);
+    --border-strong: rgba(15, 23, 42, 0.24);
+    --text: #0b1220;
+    --text-dim: #334155;
+    --text-faint: #64748b;
+    --accent: #0891b2;
+    --accent-2: #0284c7;
+    /* Same hues, darker, so they stay readable on white paper */
+    --signal-low: #4f46e5;
+    --signal-medium: #b45309;
+    --signal-high: #c2410c;
+    --signal-critical: #be123c;
+    --signal-live: #047857;
+    --grade-a: #047857;
+    --grade-b: #4d7c0f;
+    --grade-c: #b45309;
+    --grade-d: #c2410c;
+    --grade-f: #be123c;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  body::before {
+    display: none;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    animation: none !important;
+    backdrop-filter: none !important;
+  }
+  @page {
+    margin: 16mm 14mm;
+  }
+}

@@ -11,24 +11,28 @@ export interface ToneClasses {
 }
 
 /** Jay's severity accents: left edge bar, soft glow, SVG stroke. */
-export const SEVERITY_ACCENT: Record<ThreatLevel, { edge: string; glow: string; stroke: string }> = {
+export const SEVERITY_ACCENT: Record<ThreatLevel, { edge: string; row: string; glow: string; stroke: string }> = {
   CRITICAL: {
     edge: "shadow-[inset_3px_0_0_var(--signal-critical),0_18px_48px_-30px_var(--signal-critical)]",
+    row: "shadow-[inset_3px_0_0_var(--signal-critical)]",
     glow: "drop-shadow-[0_0_6px_var(--signal-critical)]",
     stroke: "var(--signal-critical)",
   },
   HIGH: {
     edge: "shadow-[inset_3px_0_0_var(--signal-high),0_18px_48px_-30px_var(--signal-high)]",
+    row: "shadow-[inset_3px_0_0_var(--signal-high)]",
     glow: "drop-shadow-[0_0_6px_var(--signal-high)]",
     stroke: "var(--signal-high)",
   },
   MEDIUM: {
     edge: "shadow-[inset_3px_0_0_var(--signal-medium),0_18px_48px_-30px_var(--signal-medium)]",
+    row: "shadow-[inset_3px_0_0_var(--signal-medium)]",
     glow: "drop-shadow-[0_0_6px_var(--signal-medium)]",
     stroke: "var(--signal-medium)",
   },
   LOW: {
     edge: "shadow-[inset_3px_0_0_var(--signal-low),0_18px_48px_-30px_var(--signal-low)]",
+    row: "shadow-[inset_3px_0_0_var(--signal-low)]",
     glow: "drop-shadow-[0_0_6px_var(--signal-low)]",
     stroke: "var(--signal-low)",
   },

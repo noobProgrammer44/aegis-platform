@@ -44,9 +44,9 @@ streamed findings.
 - Dependencies added: `better-sqlite3`, `zod`, `vitest`, `@types/better-sqlite3`.
 - `npx tsc --noEmit` passes.
 
-**Items 1, 2, 6, 7, 8 and 9 are done, 4 and 10 partly** (scans write real risks) (data layer, pure domain logic in `lib/domain/`, app shell + UI kit; item 3 is deferred): `lib/db/repos/*` has one repository per table,
+**Items 1, 2, 6, 7, 8, 9, 11 and 12 are done, 4 and 10 partly** (scans write real risks; Risks and Reports pages are real; Integrations is a preview mock) (data layer, pure domain logic in `lib/domain/`, app shell + UI kit; item 3 is deferred): `lib/db/repos/*` has one repository per table,
 all workspace-scoped, plus `npm test` (vitest) with repository tests on
-`openDb(":memory:")`. Next up: item 11 (Risks page), rest of 10, then 12, 5 and 3. `npm run seed:demo` gives the UI sample data. The checklist
+`openDb(":memory:")`. Next up: rest of 10 (scheduling UI), 14 (real integrations), 15 (settings / API), 5 and 3. `npm run seed:demo` gives the UI sample data. The checklist
 in `docs/LOOP-PLAN.md` is always the source of truth for what's next.
 
 ## Machine setup (already done on Kartik's Mac; repeat on a new machine)

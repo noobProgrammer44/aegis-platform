@@ -71,11 +71,11 @@ Feature research: `docs/hostedscan-reference/README.md`.
       delete), New Scan modal (scanner cards, passive vs full, target / tag
       selection, run now or schedule, email chips), scan detail with live
       progress + raw results download, Scheduled tab.
-- [ ] 11. Risks: table (filters by level / status / accepted / scanner / target /
+- [x] 11. Risks: table (filters by level / status / accepted / scanner / target /
       tag, search, group by title or target), risk drawer (description, solution,
       references, CVSS, evidence, history), accept / unaccept with reason,
       acceptance rules editor, CSV export.
-- [ ] 12. Reports: builder (name, format HTML-PDF / JSON / CSV, targets filter, risk
+- [x] 12. Reports: builder (name, format HTML-PDF / JSON / CSV, targets filter, risk
       filter, sections), printable branded report page (cover, executive summary,
       coverage, target breakdown, details), report history, scheduled reports.
 - [ ] 13. AI summary via OpenRouter (Phase 8): scan + report executive summary,
@@ -165,3 +165,19 @@ Feature research: `docs/hostedscan-reference/README.md`.
   Chip / Tag badge styles, glowing severity edges, rising rows, glass sidebar and
   cards, `components/ui/severity-donut.tsx` (dashboard risks panel) and
   `components/ui/segmented.tsx` (dashboard period, New scan intensity).
+- 2026-11-03: item 11 done. Risks page on real data: filters (status, severity,
+  accepted, scanner, target, tag, search), group by risk or target, drawer
+  (description, solution, references, evidence, history from the audit log),
+  accept / un-accept with a reason (recomputes health), acceptance rules tab
+  (create, enable/disable, delete; rules re-applied to open risks immediately via
+  `lib/services/acceptance.ts`), CSV export `/api/risks/export` (same filters,
+  formula-injection safe). Pure logic in `lib/domain/risk-table.ts`.
+- 2026-11-03: item 12 done except scheduled reports. Builder (name, format, targets /
+  tags, severities, accepted / closed, sections) -> frozen snapshot
+  (`lib/domain/report.ts`) -> printable report `/reports/[id]` (cover, executive
+  summary, coverage, target breakdown, risk details, accepted risks; light print
+  theme for PDF), JSON / CSV downloads `/api/reports/[id]/download`, history, delete.
+  Target drawer "Generate report" preselects the target.
+- 2026-11-03: Integrations page is a labelled PREVIEW (item 14 still open): cards and
+  setup dialogs for email, Slack, Teams, PagerDuty, webhooks, Jira, AWS, Azure; save
+  and test are disabled and nothing is stored or sent.

@@ -63,7 +63,7 @@ export function Sidebar({ workspaceName }: { workspaceName: string }) {
   return (
     <aside
       className={cx(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border-soft bg-canvas/50 backdrop-blur-md transition-[width]",
+        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border-soft bg-canvas/50 backdrop-blur-md transition-[width] print:hidden",
         collapsed ? "w-16" : "w-60",
       )}
     >
