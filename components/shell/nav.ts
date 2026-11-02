@@ -21,6 +21,7 @@ export interface NavItem {
 
 export const MAIN_NAV: readonly NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/quick-scan", label: "Quick scan", icon: Zap },
   { href: "/targets", label: "Targets", icon: Crosshair },
   { href: "/scans", label: "Scans", icon: Radar },
   { href: "/risks", label: "Risks", icon: Bug },
@@ -31,7 +32,6 @@ export const MAIN_NAV: readonly NavItem[] = [
 ];
 
 export const FOOTER_NAV: readonly NavItem[] = [
-  { href: "/quick-scan", label: "Quick scan", icon: Zap },
   { href: "/api-docs", label: "API docs", icon: BookOpen },
   { href: "/help", label: "Help", icon: LifeBuoy },
 ];
