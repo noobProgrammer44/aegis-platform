@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import readline from "node:readline";
+import { intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
 import type { Finding, LiveHost, Severity } from "@/types/recon";
 
 /**
@@ -53,7 +54,11 @@ export async function runNucleiStream(
     onFinding: (finding: Finding) => void;
     onProgress: (message: string) => void;
   },
-  options: { signal?: AbortSignal } = {},
+  options: {
+    signal?: AbortSignal;
+    deepCve?: boolean;
+    intensity?: ScanIntensity | string;
+  } = {},
 ): Promise<StreamStatus> {
   if (hosts.length === 0) return { status: "ok" };
 
@@ -72,11 +77,21 @@ export async function runNucleiStream(
     }
   }
 
-  // Local single-instance targets (e.g. Juice Shop) crash under default nuclei
-  // aggression, so scan them gently. Remote hosts tolerate more, but a managed
-  // host/WAF will wall us off if we flood it — so stay moderate there too.
-  const rateLimit = allLocal ? "40" : "60";
-  const concurrency = allLocal ? "15" : "20";
+  // Rate-limit and concurrency come from the scan-intensity setting (polite by
+  // default — gentle enough for fragile local targets like Juice Shop).
+  const profile = intensityProfile(options.intensity);
+  const rateLimit = String(profile.nucleiRateLimit);
+  const concurrency = String(profile.nucleiConcurrency);
+  // Fragile local single-host targets (e.g. Juice Shop) throw connection errors
+  // under scan load; a low cap drops them mid-scan and loses findings. Give local
+  // a high tolerance; remote keeps a low cap so genuinely dead hosts skip fast.
+  const maxHostError = allLocal ? "100" : "30";
+
+  // CVE templates (~4k) are the bulk of the set, and their exploit payloads can
+  // crash fragile single-host targets (e.g. Juice Shop SIGSEGVs). They're opt-in
+  // via the "Deep CVE scan" toggle; the default set stays fast and non-crashing.
+  const baseTags = "exposure,misconfig,exposed-panels,default-login";
+  const tags = options.deepCve ? `cve,${baseTags}` : baseTags;
 
   const args = [
     "run",
@@ -87,16 +102,27 @@ export async function runNucleiStream(
     "-u",
     targets.join(","),
     "-jsonl",
+    // Scoped template set: loading the full ~17k set makes every scan take
+    // minutes and hit the timeout. Restrict to actionable, non-aggressive
+    // categories (plus cve only when the Deep CVE toggle is on) so the scan
+    // stays fast.
     "-severity",
-    "low,medium,high,critical",
+    "medium,high,critical",
+    "-tags",
+    tags,
+    "-exclude-tags",
+    "fuzzing,dos,intrusive",
+    // Skip the per-run template-version check (templates are pre-warmed in the
+    // volume — see CLAUDE.md for the one-time -update-templates command).
+    "-disable-update-check",
     "-rate-limit",
     rateLimit,
     "-concurrency",
     concurrency,
     "-timeout",
-    "10",
+    "5",
     "-max-host-error",
-    "100",
+    maxHostError,
     "-stats",
     "-stats-interval",
     "5",

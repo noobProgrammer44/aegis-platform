@@ -55,6 +55,28 @@ Aegis shells out to Docker (e.g. `docker run --rm projectdiscovery/nuclei:latest
 streams nuclei's JSON output back into the pipeline, and merges it into the
 stage-4 findings. nuclei only runs for targets that clear **Tier 3** authorization.
 
+**Scoped templates for speed.** The scan does **not** load the full ~17k template
+set (which takes minutes and times out). The default set is `-severity
+medium,high,critical` + `-tags exposure,misconfig,exposed-panels,default-login` +
+`-exclude-tags fuzzing,dos,intrusive` (~1.4k templates, finishes in ~1–2 min).
+
+The `cve` tag (~4k more templates) is **opt-in via the "Deep CVE scan" UI toggle**
+(`deepCve` in the API body). Its exploit payloads can **crash fragile single-host
+targets** — Juice Shop SIGSEGVs under it — so it's meant for robust real targets,
+not the local demo. `max-host-error`, `rate-limit`, and `concurrency` are
+locality-based: gentler for localhost (which is fragile), higher for remote hosts.
+
+**One-time template warm-up (do this before your first scan).** Templates live in
+a persistent Docker volume (`aegis-nuclei`) so they download once, not per run. The
+scan uses `-disable-update-check`, so pre-download the templates first:
+
+```bash
+docker run --rm -v aegis-nuclei:/root projectdiscovery/nuclei:latest -update-templates
+```
+
+Re-run that occasionally to refresh templates. Without it (on a fresh machine) the
+first scan has no templates and returns no nuclei findings.
+
 ## Authorization model (3 tiers)
 
 Authorization is enforced per target **before** any stage touches it. Higher tiers
@@ -77,6 +99,42 @@ produce a prioritized, human-readable executive summary (risk narrative,
 notable exposures, suggested next actions). The key lives in `.env.local` as
 `OPENROUTER_API_KEY` (gitignored). The AI layer is **summary/triage only** — it
 never decides authorization and never triggers scanning.
+
+## Port scan (Stage 2b)
+
+Between live probe and fingerprint, Aegis runs a **pure-Node TCP-connect scan** over
+~90 common ports per live host (`lib/recon/ports.ts`, `POST /api/scan/ports`). No
+raw sockets, Docker, or root — each port is a `net.Socket` connect test, bounded by
+p-limit and a per-port timeout. Open ports become findings (**INFO**; **HIGH** for
+exposed data stores / admin services like MySQL, Redis, MongoDB, Elasticsearch).
+Open web ports (80/443/3000/8080/8443/…) are **fed back through probe + fingerprint**
+so services on non-standard ports are checked too. It's an ACTIVE stage behind the
+same authorization gate as the others — never on passive-only scans.
+
+## Scan intensity (low & slow)
+
+A single `scanIntensity` setting controls how hard every active stage hits the
+target (`lib/recon/intensity.ts`), applied consistently across probe, port scan,
+fingerprint, and nuclei. Default **polite**. Chosen from a dropdown in the UI,
+passed to every active route, and logged at the start of each scan.
+
+| Level | Node concurrency | Inter-request delay | nuclei rate / concurrency |
+|---|---|---|---|
+| **Polite** (default) | 4 | 250 ms | 20 / 10 |
+| **Normal** | 12 | 50 ms | 60 / 20 |
+| **Aggressive** | 30 | 0 ms | 150 / 30 |
+
+Polite is slow, stealthy, and kind to the target; aggressive is fast (and can
+overwhelm fragile hosts). Scan speed visibly changes with the setting.
+
+## Scan reports
+
+Every completed scan is persisted as JSON to **`./scans/<target>-<timestamp>.json`**
+(gitignored — may contain sensitive target data) and exported as a clean Markdown
+pentest deliverable via `POST /api/scan/report` (`lib/report/markdown.ts`): title,
+scope + authorization note, executive summary (risk score + severity counts),
+findings grouped by severity, open-ports table, detected technologies/versions, and
+a methodology section. The UI's **Download report** button saves it as a `.md` file.
 
 ## Tech stack & layout
 

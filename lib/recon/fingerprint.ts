@@ -1,6 +1,7 @@
 import { load } from "cheerio";
 import pLimit from "p-limit";
 import wappalyzer from "simple-wappalyzer";
+import { delay, intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
 import type { Fingerprint, LiveHost } from "@/types/recon";
 
 /**
@@ -14,7 +15,6 @@ import type { Fingerprint, LiveHost } from "@/types/recon";
 
 const FETCH_TIMEOUT_MS = 8_000;
 const PATH_TIMEOUT_MS = 5_000;
-const HOST_CONCURRENCY = 5;
 const SUBREQ_CONCURRENCY = 4;
 const MAX_BUNDLES = 5;
 const MAX_LINKS = 50;
@@ -68,6 +68,7 @@ type Resource = { url: string; status: number; headers: Headers; body: string };
 export async function fingerprint(
   hosts: LiveHost[],
   activeAllowed: boolean,
+  intensityValue: ScanIntensity | string = "polite",
 ): Promise<Fingerprint[]> {
   if (!activeAllowed) {
     throw new Error(
@@ -75,8 +76,16 @@ export async function fingerprint(
     );
   }
 
-  const limit = pLimit(HOST_CONCURRENCY);
-  return Promise.all(hosts.map((host) => limit(() => fingerprintOne(host))));
+  const profile = intensityProfile(intensityValue);
+  const limit = pLimit(profile.concurrency);
+  return Promise.all(
+    hosts.map((host) =>
+      limit(async () => {
+        if (profile.delayMs) await delay(profile.delayMs);
+        return fingerprintOne(host);
+      }),
+    ),
+  );
 }
 
 async function fingerprintOne(host: LiveHost): Promise<Fingerprint> {

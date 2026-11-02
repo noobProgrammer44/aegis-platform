@@ -20,6 +20,9 @@
 # production
 /build
 
+# aegis scan reports (may contain sensitive target data)
+/scans/
+
 # misc
 .DS_Store
 *.pem
