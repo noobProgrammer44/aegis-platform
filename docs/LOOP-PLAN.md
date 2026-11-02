@@ -60,7 +60,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
       Integrations, Settings, Audit log; Quick scan, API docs, Help), collapse,
       shared UI kit (buttons, tiles, chips, drawer, modal, table, gauge); move the
       old single page to `/quick-scan`.
-- [ ] 8. Dashboard: period selector, scans-in-progress / scheduled pill, New Scan,
+- [x] 8. Dashboard: period selector, scans-in-progress / scheduled pill, New Scan,
       health gauge + about-your-score, severity tiles + accepted / closed, recent
       scans / risks / discovered domains, insight cards.
 - [ ] 9. Targets: table (grouping, search, sort, filters, tags, grade, discovered,
@@ -123,3 +123,9 @@ Feature research: `docs/hostedscan-reference/README.md`.
   colour tokens. Old page moved to `/quick-scan`, `/` redirects to `/dashboard`.
   Dashboard already shows real health + severity counts from the database; other
   sections show empty states. `lucide-react` added. Checked in the browser at 1440px.
+- 2026-11-02: item 8 done. `lib/services/dashboard.ts` loads everything server-side;
+  `lib/domain/insights.ts` (periods, issue grouping, top issues, most critical /
+  frequent / vulnerable, 30-day trend from snapshots) with tests; panels in
+  `components/dashboard/`. Period selector is plain links (`?period=30d|90d|1y|all`).
+  `npm run seed:demo` (tsx) fills `data/demo.db` with sample data; browse it with
+  `AEGIS_DB_PATH=data/demo.db npm run dev -- -p 3001`. Checked in the browser.
