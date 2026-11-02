@@ -1,5 +1,8 @@
 # Aegis — External Attack Surface Assessment
 
+> **On branch `aegis-platform`?** Read `docs/BRANCH-STATUS.md` first: what this branch
+> adds on top of `main`, what is tested, and what changed in `main`'s code.
+
 Aegis is an External Attack Surface Assessment (EASS) tool: given an authorized
 target scope, it enumerates the externally reachable surface, fingerprints what's
 running, probes for exposures, and produces a human-readable risk summary. Built
