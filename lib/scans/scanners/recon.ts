@@ -96,6 +96,7 @@ const nuclei: Scanner = {
       risks: toDetectedRisks("NUCLEI", target.id, findings),
       discovered: [],
       raw: { status, findings },
+      partial: status.status === "partial" ? status.message : undefined,
     };
   },
 };

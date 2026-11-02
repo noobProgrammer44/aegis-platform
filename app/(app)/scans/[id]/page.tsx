@@ -58,6 +58,11 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ id:
         </Card>
 
         <Card title="Targets" className="lg:col-span-2">
+          {!live && scan.progressMessage && (
+            <p className="mb-3 rounded-lg border border-caution/30 bg-caution/10 px-3 py-2 text-xs text-caution">
+              {scan.progressMessage} Risks this scan couldn&apos;t check were left open.
+            </p>
+          )}
           <ul className="space-y-1.5 text-sm">
             {scan.targets.map((t) => {
               const skip = scan.skippedTargets.find((s) => s.target === t);

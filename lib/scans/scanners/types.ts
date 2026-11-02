@@ -24,6 +24,11 @@ export interface ScannerOutput {
   raw: unknown;
   /** Why this target was not scanned (not applicable, tool unavailable). */
   skipped?: string;
+  /**
+   * Set when the scan only partly ran (e.g. a WAF blocked the scanner). Its risks are
+   * still recorded, but risks it didn't see stay open instead of being closed.
+   */
+  partial?: string;
 }
 
 export interface Scanner extends ScannerInfo {

@@ -124,13 +124,15 @@ function finishScan(db: DB, scan: Scan, outcomes: TargetOutcome[]): Scan | null 
   }
 
   const scannedIds = done.map((o) => o.target.id);
+  const partial = done.filter((o) => o.output.partial);
   const detected: DetectedRisk[] = done.flatMap((o) => o.output.risks);
   const merge = mergeScanRisks({
     workspaceId: ws,
     scanId: scan.id,
     scanType: scan.type,
     at,
-    scannedTargetIds: scannedIds,
+    // Only fully scanned targets can have risks closed as "no longer found".
+    scannedTargetIds: done.filter((o) => !o.output.partial).map((o) => o.target.id),
     existing: scannedIds.length > 0 ? listRisks(db, ws, { targetIds: scannedIds }) : [],
     detected,
     rules: listAcceptanceRules(db, ws, { enabledOnly: true }),
@@ -152,7 +154,9 @@ function finishScan(db: DB, scan: Scan, outcomes: TargetOutcome[]): Scan | null 
   updateScan(db, ws, scan.id, {
     state,
     progress: 100,
-    progressMessage: null,
+    progressMessage: partial.length > 0
+      ? `Partial results for ${partial.map((o) => o.target.target).join(", ")}: ${partial[0].output.partial}`
+      : null,
     risks: merge.counts,
     skippedTargets: skipped.map((o) => ({ target: o.label, reason: o.skipped })),
     error: allFailed ? skipped[0].skipped : null,

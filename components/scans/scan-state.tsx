@@ -12,7 +12,7 @@ const TONE: Record<ScanState, string> = {
   STOPPED: "text-text-dim",
 };
 
-/** State label, with a progress bar while the scan runs. */
+/** State label, with a progress bar while the scan runs and a note when results are partial. */
 export function ScanStateBadge({ scan }: { scan: Pick<Scan, "state" | "progress" | "progressMessage"> }) {
   const running = scan.state === "RUNNING" || scan.state === "STOPPING";
   return (
@@ -32,6 +32,11 @@ export function ScanStateBadge({ scan }: { scan: Pick<Scan, "state" | "progress"
             </p>
           )}
         </>
+      )}
+      {!running && scan.state === "SUCCEEDED" && scan.progressMessage && (
+        <p className="mt-1 max-w-56 truncate text-[11px] text-caution" title={scan.progressMessage}>
+          Partial: some checks were blocked
+        </p>
       )}
     </div>
   );

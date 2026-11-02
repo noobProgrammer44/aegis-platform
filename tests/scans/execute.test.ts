@@ -30,7 +30,7 @@ const risk = (target: Target, fingerprint: string, threatLevel: DetectedRisk["de
 });
 
 function fakeScanner(mode: "active" | "passive", run: (target: Target) => ScannerOutput | Promise<ScannerOutput>): Scanner {
-  return { type: "SURFACE", label: "Fake", description: "", mode, run: ({ target }) => Promise.resolve(run(target)) };
+  return { type: "SURFACE", label: "Fake", description: "", mode, tags: [], run: ({ target }) => Promise.resolve(run(target)) };
 }
 
 const signal = () => new AbortController().signal;
@@ -69,6 +69,18 @@ describe("executeScan", () => {
 
     expect(second?.risks).toEqual({ newOpen: 0, stillOpen: 1, closed: 1 });
     expect(listRisks(db(), WS, { status: "OPEN" })).toHaveLength(1);
+  });
+
+  it("keeps unconfirmed risks open and says so when a scanner was only partly able to run", async () => {
+    const t = local();
+    await executeScan(db(), queue([t]), signal(), { SURFACE: fakeScanner("active", (x) => ({ risks: [risk(x, "a"), risk(x, "b")], discovered: [], raw: null })) });
+    const blocked = await executeScan(db(), queue([t]), signal(), {
+      SURFACE: fakeScanner("active", (x) => ({ risks: [risk(x, "c")], discovered: [], raw: null, partial: "Blocked by a WAF." })),
+    });
+
+    expect(blocked).toMatchObject({ state: "SUCCEEDED", risks: { newOpen: 1, stillOpen: 0, closed: 0 } });
+    expect(blocked?.progressMessage).toBe("Partial results for localhost:3100: Blocked by a WAF.");
+    expect(listRisks(db(), WS, { status: "OPEN" })).toHaveLength(3);
   });
 
   it("never runs an active scanner against a target that isn't authorized", async () => {
