@@ -64,6 +64,10 @@ export interface Finding {
   /** Set for port-scan findings. */
   port?: number;
   service?: string;
+  /** Reference URLs (docs, advisories). */
+  references?: string[];
+  /** Structured scanner evidence: CWE, instances, confidence, ... (platform scanners). */
+  details?: Record<string, unknown>;
 }
 
 /** An open TCP port discovered during the port-scan stage. */

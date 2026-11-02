@@ -47,6 +47,7 @@ export function toDetectedRisks(
       host: finding.host,
       ...(finding.port !== undefined ? { port: finding.port } : {}),
       ...(finding.service ? { service: finding.service } : {}),
+      ...(finding.details ?? {}),
     };
     return [
       {
@@ -58,7 +59,7 @@ export function toDetectedRisks(
           threatLevel,
           description: finding.description,
           solution: finding.recommendation,
-          references: [],
+          references: [...(finding.references ?? [])],
           cvss: null,
           additionalInfo,
         },
