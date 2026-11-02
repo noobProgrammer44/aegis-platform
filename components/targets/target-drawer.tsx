@@ -3,7 +3,7 @@
 import { FileText, Radar, Trash2 } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
 import { deleteTargetAction, updateTargetAction } from "@/app/(app)/targets/actions";
-import { INITIAL_RESULT } from "@/app/(app)/targets/action-result";
+import { INITIAL_RESULT } from "@/lib/actions/result";
 import { Chip, SeverityDot } from "@/components/ui/badges";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { HealthGauge } from "@/components/ui/gauge";

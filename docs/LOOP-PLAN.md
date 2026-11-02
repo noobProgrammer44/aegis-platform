@@ -51,7 +51,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
 - [ ] 5. More scanners: Nmap TCP port scan, TLS/SSL (sslyze, Node fallback),
       Email security (SPF / DMARC / MX), Domain takeover (dangling CNAME), JS
       secrets + source maps ("vibe-code leaks"), OWASP ZAP baseline + full (Docker).
-- [ ] 6. Scan runner + queue (QUEUED -> RUNNING -> SUCCEEDED / FAILED / STOPPED,
+- [x] 6. Scan runner + queue (QUEUED -> RUNNING -> SUCCEEDED / FAILED / STOPPED,
       progress, stop), risk merge + health recompute, events; scheduler for
       scheduled scans via `instrumentation.ts`.
 
@@ -138,3 +138,21 @@ Feature research: `docs/hostedscan-reference/README.md`.
   grouping; add modal; drawer with gauge, stat strip, Risks / Recent scans /
   Metadata tabs; Discovered tab. Pure table logic in `lib/domain/target-table.ts`.
   Checked in the browser on demo data. Next: items 4-6 so scans write real risks.
+- 2026-11-02: scans now write real risks (item 6 done; items 4 and 10 partly).
+  `lib/scans/`: `scanners.ts` adapters over Amaan's lib/recon stages (Web surface =
+  probe + fingerprint + analysis, Port scan = his TCP connect scan, Nuclei, Subdomain
+  discovery via crt.sh); `catalog.ts` browser-safe metadata; `findings.ts` finding ->
+  risk mapping with stable fingerprints (digits masked); `gate.ts` server-side check:
+  active scanners only touch local / private-network targets until item 3 adds
+  attestation + DNS verification; `execute.ts` runs a scan (gate, run, raw results
+  file, merge risks, recompute health + snapshots, audit); `runner.ts` DB-backed queue
+  (concurrency 2, stop, restart recovery); `scheduler.ts` + `instrumentation.ts` queue
+  due scheduled scans every 30s. Migration 2 adds `scans.intensity`.
+  Scans page: list with live progress (auto refresh), New scan dialog (scanners, targets,
+  intensity, gate preview), stop / delete, detail page with skipped reasons and raw
+  results download (`/api/scans/[id]/results/[fileId]`).
+  Verified on the real DB: added localhost:3100 (Juice Shop) + example.com, ran Web
+  surface + Port scan from the UI -> 6 real risks, health 221 / B on the dashboard,
+  example.com skipped by the gate.
+  Still open in item 4: tool resolver (local binary / Docker / unavailable) and
+  subfinder. Still open in item 10: Scheduled tab and schedule-from-dialog.

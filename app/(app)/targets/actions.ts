@@ -15,7 +15,7 @@ import {
 import { parseTarget, parseTargetList } from "@/lib/domain/targets";
 import { parseLabel, parseTags } from "@/lib/validation/targets";
 import { currentWorkspaceId } from "@/lib/workspace";
-import type { ActionResult } from "./action-result";
+import type { ActionResult } from "@/lib/actions/result";
 
 /** Server actions for the Targets page. Every input is validated here, not in the browser. */
 

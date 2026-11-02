@@ -1,18 +1,28 @@
-import { Radar } from "lucide-react";
 import type { Metadata } from "next";
-import { EmptyState, PageHeader } from "@/components/ui/card";
+import { ScansView } from "@/components/scans/scans-view";
+import { getDb } from "@/lib/db/client";
+import { listScans } from "@/lib/db/repos/scans";
+import { listTargets } from "@/lib/db/repos/targets";
+import { currentWorkspaceId } from "@/lib/workspace";
 
 export const metadata: Metadata = { title: "Scans" };
 
-export default function ScansPage() {
+export default async function ScansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ new?: string; target?: string }>;
+}) {
+  const params = await searchParams;
+  const db = getDb();
+  const ws = currentWorkspaceId();
+  const targets = listTargets(db, ws);
+  const preselected = targets.filter((t) => t.id === params.target).map((t) => t.id);
   return (
-    <div className="px-8 py-8">
-      <PageHeader title="Scans" description="Running, finished and scheduled scans of your targets." />
-      <EmptyState
-        icon={<Radar className="h-6 w-6" />}
-        title="No scans yet"
-        description="Scans you run or schedule show up here with their progress and results."
-      />
-    </div>
+    <ScansView
+      scans={listScans(db, ws, { limit: 100 })}
+      targets={targets}
+      openNew={params.new === "1"}
+      preselected={preselected}
+    />
   );
 }

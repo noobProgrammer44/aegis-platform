@@ -246,4 +246,8 @@ export const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (workspace_id, target_key, day)
   );
   `,
+  // 2: how hard a scan hits its targets (lib/recon/intensity.ts).
+  `
+  ALTER TABLE scans ADD COLUMN intensity TEXT NOT NULL DEFAULT 'polite';
+  `,
 ];

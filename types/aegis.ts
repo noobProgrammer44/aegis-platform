@@ -66,10 +66,13 @@ export interface ScanRiskCounts {
   closed: number;
 }
 
+export type ScanIntensityLevel = "polite" | "normal" | "aggressive";
+
 export interface Scan {
   id: string;
   workspaceId: string;
   type: ScanType;
+  intensity: ScanIntensityLevel;
   state: ScanState;
   progress: number;
   progressMessage: string | null;

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { addTargetsAction } from "@/app/(app)/targets/actions";
-import { INITIAL_RESULT } from "@/app/(app)/targets/action-result";
+import { INITIAL_RESULT } from "@/lib/actions/result";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/overlays";
 import { MAX_TAGS } from "@/lib/validation/limits";

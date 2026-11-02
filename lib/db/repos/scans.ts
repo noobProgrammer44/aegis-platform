@@ -1,4 +1,4 @@
-import type { Scan, ScanRiskCounts, ScanState, ScanType } from "@/types/aegis";
+import type { Scan, ScanIntensityLevel, ScanRiskCounts, ScanState, ScanType } from "@/types/aegis";
 import { newId, nowIso, parseJson, toJson, type DB } from "../client";
 import { definedOnly, placeholders } from "../sql";
 
@@ -6,6 +6,7 @@ interface ScanRow {
   id: string;
   workspace_id: string;
   type: ScanType;
+  intensity: ScanIntensityLevel;
   state: ScanState;
   progress: number;
   progress_message: string | null;
@@ -23,6 +24,7 @@ interface ScanRow {
 
 export interface NewScan {
   type: ScanType;
+  intensity?: ScanIntensityLevel;
   targetIds: string[];
   targets: string[];
   scheduledBy?: string | null;
@@ -49,6 +51,7 @@ const toScan = (row: ScanRow): Scan => ({
   id: row.id,
   workspaceId: row.workspace_id,
   type: row.type,
+  intensity: row.intensity,
   state: row.state,
   progress: row.progress,
   progressMessage: row.progress_message,
@@ -68,6 +71,7 @@ const toParams = (s: Scan) => ({
   id: s.id,
   workspace_id: s.workspaceId,
   type: s.type,
+  intensity: s.intensity,
   state: s.state,
   progress: s.progress,
   progress_message: s.progressMessage,
@@ -88,6 +92,7 @@ export function createScan(db: DB, workspaceId: string, input: NewScan): Scan {
     id: newId("scn"),
     workspaceId,
     type: input.type,
+    intensity: input.intensity ?? "polite",
     state: "QUEUED",
     progress: 0,
     progressMessage: null,
@@ -103,12 +108,12 @@ export function createScan(db: DB, workspaceId: string, input: NewScan): Scan {
     finishedAt: null,
   };
   db.prepare(
-    `INSERT INTO scans (id, workspace_id, type, state, progress, progress_message, target_ids,
-       targets, skipped_targets, risks, scheduled_by, error, ai_summary, created_at, started_at,
-       finished_at)
-     VALUES (@id, @workspace_id, @type, @state, @progress, @progress_message, @target_ids,
-       @targets, @skipped_targets, @risks, @scheduled_by, @error, @ai_summary, @created_at,
-       @started_at, @finished_at)`,
+    `INSERT INTO scans (id, workspace_id, type, intensity, state, progress, progress_message,
+       target_ids, targets, skipped_targets, risks, scheduled_by, error, ai_summary, created_at,
+       started_at, finished_at)
+     VALUES (@id, @workspace_id, @type, @intensity, @state, @progress, @progress_message,
+       @target_ids, @targets, @skipped_targets, @risks, @scheduled_by, @error, @ai_summary,
+       @created_at, @started_at, @finished_at)`,
   ).run(toParams(scan));
   return scan;
 }
