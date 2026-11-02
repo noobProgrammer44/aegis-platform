@@ -1,5 +1,6 @@
 import net from "node:net";
 import pLimit from "p-limit";
+import { behindCloudflare, CLOUDFLARE_PROXY_PORTS } from "@/lib/recon/cdn-edge";
 import { delay, intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
 import {
   hasProxy,
@@ -113,7 +114,10 @@ export async function scanPorts(
 
   openPorts.sort((a, b) => a.host.localeCompare(b.host) || a.port - b.port);
 
-  const findings = openPorts.map(toPortFinding);
+  const edgeHosts = await cloudflareHosts(openPorts);
+  const findings = openPorts.map((p) =>
+    edgeHosts.has(p.host) && CLOUDFLARE_PROXY_PORTS.has(p.port) ? toEdgeFinding(p) : toPortFinding(p),
+  );
   const webTargets = openPorts
     .filter((p) => WEB_PORTS.has(p.port))
     .map((p) => `${p.host}:${p.port}`);
@@ -138,6 +142,26 @@ function checkPort(host: string, port: number, timeoutMs: number): Promise<boole
     socket.once("error", () => finish(false));
     socket.connect(port, host);
   });
+}
+
+/** Hosts with Cloudflare-proxied ports open that turn out to be fronted by Cloudflare. */
+async function cloudflareHosts(openPorts: readonly OpenPort[]): Promise<Set<string>> {
+  const candidates = [...new Set(openPorts.filter((p) => CLOUDFLARE_PROXY_PORTS.has(p.port)).map((p) => p.host))];
+  const checks = await Promise.all(candidates.map(async (host) => [host, await behindCloudflare(host)] as const));
+  return new Set(checks.filter(([, edge]) => edge).map(([host]) => host));
+}
+
+/** Cloudflare's edge listens on these ports for every proxied site; the origin may not. */
+function toEdgeFinding(p: OpenPort): Finding {
+  return {
+    host: `${p.host}:${p.port}`,
+    title: `Open port ${p.port} — Cloudflare edge`,
+    severity: "INFO",
+    description: `Port ${p.port} on ${p.host} is answered by Cloudflare's proxy, which listens on this port for every proxied site. It says nothing about what your origin server exposes.`,
+    recommendation: "No action needed for the edge itself. To close it, add a Cloudflare WAF rule blocking non-standard ports, or turn off the proxy for unused ports.",
+    port: p.port,
+    service: "Cloudflare edge",
+  };
 }
 
 function toPortFinding(p: OpenPort): Finding {

@@ -87,7 +87,7 @@ describe("TLS", () => {
     trusted: true,
     hostnameMatches: true,
     legacyAccepted: false,
-    cert: { subject: "app.example.com", issuer: "Let's Encrypt", validFrom: "2026-09-01T00:00:00.000Z", validTo, bits: 2048, altNames: ["app.example.com"] },
+    cert: { subject: "app.example.com", issuer: "Let's Encrypt", validFrom: "2026-09-01T00:00:00.000Z", validTo, bits: 2048, keyType: "RSA", altNames: ["app.example.com"] },
     ...overrides,
   });
 
@@ -111,6 +111,13 @@ describe("TLS", () => {
       "Weak TLS key",
     ]);
     expect(titles(evaluateTls(probe({ trusted: false, trustError: "UNABLE_TO_VERIFY_LEAF_SIGNATURE" }), NOW))).toEqual(["TLS certificate is not trusted"]);
+  });
+
+  it("judges key strength by key type (a P-256 EC key is strong)", () => {
+    const ec = (bits: number) => probe({ cert: { ...probe().cert!, keyType: "EC", bits } });
+    expect(evaluateTls(ec(256), NOW)).toEqual([]);
+    expect(evaluateTls(ec(160), NOW)).toMatchObject([{ title: "Weak TLS key", description: expect.stringContaining("160-bit EC key") }]);
+    expect(evaluateTls(probe({ cert: { ...probe().cert!, bits: 1024 } }), NOW)).toMatchObject([{ description: expect.stringContaining("1024-bit RSA key") }]);
     expect(evaluateTls(probe({}, "2026-10-01T00:00:00.000Z"), NOW)[0].port).toBe(443);
   });
 });

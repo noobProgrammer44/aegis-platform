@@ -14,8 +14,9 @@ export interface TlsCertInfo {
   issuer: string;
   validFrom: string;
   validTo: string;
-  /** RSA modulus size; undefined for EC keys. */
+  /** Key size in bits (RSA modulus or EC curve size). */
   bits?: number;
+  keyType?: "RSA" | "EC";
   altNames: string[];
 }
 
@@ -61,6 +62,8 @@ const toInfo = (cert: PeerCertificate): TlsCertInfo => ({
   validFrom: new Date(cert.valid_from).toISOString(),
   validTo: new Date(cert.valid_to).toISOString(),
   bits: typeof cert.bits === "number" ? cert.bits : undefined,
+  // Node reports a curve for EC keys and a modulus for RSA ones.
+  keyType: cert.asn1Curve || cert.nistCurve ? "EC" : cert.modulus ? "RSA" : undefined,
   altNames: (cert.subjectaltname ?? "").split(",").map((s) => s.trim().replace(/^DNS:/, "")).filter(Boolean),
 });
 
@@ -97,6 +100,8 @@ export async function probeTls(host: string, port: number): Promise<TlsProbe> {
 }
 
 const DAY_MS = 86_400_000;
+const MIN_RSA_BITS = 2048;
+const MIN_EC_BITS = 224;
 const SELF_SIGNED = new Set(["DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN_CHAIN"]);
 
 /** Findings for one TLS endpoint. Pure. */
@@ -117,7 +122,7 @@ export function evaluateTls(probe: TlsProbe, now: Date): Finding[] {
       owasp: OWASP.cryptographicFailures,
       instances: [{
         uri: `https://${where}`,
-        evidence: `subject ${cert.subject || "(none)"}; issuer ${cert.issuer || "(none)"}; valid ${cert.validFrom.slice(0, 10)} to ${cert.validTo.slice(0, 10)}${cert.bits ? `; ${cert.bits}-bit key` : ""}`,
+        evidence: `subject ${cert.subject || "(none)"}; issuer ${cert.issuer || "(none)"}; valid ${cert.validFrom.slice(0, 10)} to ${cert.validTo.slice(0, 10)}${cert.bits ? `; ${cert.bits}-bit ${cert.keyType ? `${cert.keyType} ` : ""}key` : ""}`,
         otherInfo: probe.protocol ? `negotiated ${probe.protocol}` : undefined,
       }],
     },
@@ -144,8 +149,9 @@ export function evaluateTls(probe: TlsProbe, now: Date): Finding[] {
   if (probe.legacyAccepted) {
     out.push(make("MEDIUM", "Legacy TLS 1.0 / 1.1 enabled", `${where} still accepts TLS 1.0 or 1.1, which are deprecated and have known weaknesses.`, "Allow only TLS 1.2 and 1.3.", "327"));
   }
-  if (probe.cert.bits !== undefined && probe.cert.bits < 2048) {
-    out.push(make("MEDIUM", "Weak TLS key", `The certificate on ${where} uses a ${probe.cert.bits}-bit RSA key.`, "Reissue the certificate with a 2048-bit (or larger) RSA key or an EC key.", "326"));
+  const { bits, keyType } = probe.cert;
+  if (bits !== undefined && bits < (keyType === "EC" ? MIN_EC_BITS : MIN_RSA_BITS)) {
+    out.push(make("MEDIUM", "Weak TLS key", `The certificate on ${where} uses a ${bits}-bit ${keyType ?? "RSA"} key.`, "Reissue the certificate with a 2048-bit (or larger) RSA key or a P-256 (or larger) EC key.", "326"));
   }
   return out;
 }

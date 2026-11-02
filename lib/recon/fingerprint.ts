@@ -3,6 +3,7 @@ import pLimit from "p-limit";
 import wappalyzer from "simple-wappalyzer";
 import { fetch, type Headers } from "undici";
 import { delay, intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
+import { BASELINE_PATH, EXPOSED_PATHS, isExposedResponse } from "@/lib/recon/exposed-paths";
 import { hasProxy, nextProxyDispatcher, proxyList } from "@/lib/recon/proxy";
 import type { Fingerprint, LiveHost } from "@/types/recon";
 
@@ -22,25 +23,6 @@ const MAX_BUNDLES = 5;
 const MAX_LINKS = 50;
 const SPARSE_THRESHOLD = 3; // below this many root detections => treat as SPA shell
 const UA = "aegis-eass/0.1 (+active-fingerprint)";
-
-const EXPOSED_PATHS = [
-  "/.git/config",
-  "/.env",
-  "/robots.txt",
-  "/sitemap.xml",
-  "/admin",
-  "/swagger",
-  "/api-docs",
-];
-
-// Paths that should answer with a file, not an HTML page. An HTML 200 here means
-// a catch-all is serving the app — a false positive, not a real exposure.
-const FILE_LIKE_PATHS = new Set(["/.git/config", "/.env", "/robots.txt", "/sitemap.xml"]);
-
-function looksLikeHtml(res: Resource): boolean {
-  const contentType = res.headers.get("content-type") ?? "";
-  return contentType.includes("text/html") || /^\s*<(?:!doctype|html)/i.test(res.body);
-}
 
 // Supplementary content signatures for things a browserless Wappalyzer run can't
 // see in raw JS bundles or error pages (SPA frameworks, server error banners).
@@ -185,19 +167,15 @@ async function checkExposedPaths(
 
   const rootNorm = rootBody.trim();
   const limit = pLimit(SUBREQ_CONCURRENCY);
+  const toResponse = (res: Resource) => ({ status: res.status, contentType: res.headers.get("content-type") ?? "", body: res.body });
+  const probe = await fetchResource(origin + BASELINE_PATH, PATH_TIMEOUT_MS);
+  const baseline = probe ? toResponse(probe) : null;
 
   const results = await Promise.all(
     EXPOSED_PATHS.map((path) =>
       limit(async () => {
         const res = await fetchResource(origin + path, PATH_TIMEOUT_MS);
-        if (!res || res.status === 404) return null;
-        // SPA catch-all: an unknown path served the root shell -> not a real resource.
-        if (res.status === 200 && res.body.trim() === rootNorm) return null;
-        // File-like paths (.git/.env/robots/sitemap) that answer with HTML are almost
-        // certainly a catch-all/CDN page, not the real file — avoid the false positive.
-        if (res.status === 200 && FILE_LIKE_PATHS.has(path) && looksLikeHtml(res)) {
-          return null;
-        }
+        if (!res || !isExposedResponse(path, toResponse(res), rootNorm, baseline)) return null;
         return `${path} (${res.status})`;
       }),
     ),
