@@ -1,7 +1,9 @@
 /**
  * Core domain types for the Aegis recon pipeline.
- * Shared across the 4 stages: discovery → live probe → crawl/fingerprint → surface analysis.
+ * Shared across the stages: discovery → live probe → port scan → crawl/fingerprint → surface analysis.
  */
+
+import type { ScanIntensity } from "@/lib/recon/intensity";
 
 /** DNS records collected for a subdomain during discovery. */
 export interface Subdomain {
@@ -50,13 +52,24 @@ export interface Fingerprint {
 /** Severity of a finding, ordered INFO < LOW < MEDIUM < HIGH < CRITICAL. */
 export type Severity = "INFO" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
-/** A single assessed exposure produced by surface analysis. */
+/** A single assessed exposure produced by surface analysis or the port scan. */
 export interface Finding {
   host: string;
   title: string;
   severity: Severity;
   description: string;
   recommendation: string;
+  /** Set for port-scan findings. */
+  port?: number;
+  service?: string;
+}
+
+/** An open TCP port discovered during the port-scan stage. */
+export interface OpenPort {
+  /** The host:port (or host) that was scanned. */
+  host: string;
+  port: number;
+  service: string;
 }
 
 /** Result of the nuclei deep-vuln stage, with graceful-degradation status. */
@@ -72,11 +85,20 @@ export type NucleiEvent =
   | { type: "progress"; message: string }
   | { type: "status"; status: NucleiResult["status"]; message?: string };
 
-/** The complete result of a scan across all four stages. */
+/** The complete, persistable result of a scan — the report artifact. */
 export interface ScanResult {
-  domain: string;
+  target: string;
+  mode: "direct" | "domain";
+  scanIntensity: ScanIntensity;
+  /** Authorization tier the scan ran under, e.g. "Passive" or "Active (attested)". */
+  authTier: string;
+  startedAt: string;
+  endedAt: string;
+  /** Names of the stages that actually ran. */
+  stagesRun: string[];
   subdomains: Subdomain[];
   liveHosts: LiveHost[];
+  openPorts: OpenPort[];
   fingerprints: Fingerprint[];
   findings: Finding[];
   riskScore: number;

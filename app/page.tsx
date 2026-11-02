@@ -7,6 +7,8 @@ import type {
   LiveHost,
   NucleiEvent,
   NucleiResult,
+  OpenPort,
+  ScanResult,
   Severity,
   Subdomain,
 } from "@/types/recon";
@@ -18,6 +20,11 @@ import {
   severityCounts,
   sortFindings,
 } from "@/lib/recon/score";
+import {
+  DEFAULT_INTENSITY,
+  INTENSITY_PROFILES,
+  type ScanIntensity,
+} from "@/lib/recon/intensity";
 
 const DNS_RESOLVE_CAP = 75;
 
@@ -26,15 +33,21 @@ type TargetMode = "direct" | "domain";
 type ScanState = {
   mode: TargetMode;
   domain: string; // the target: a host (direct) or a domain (enumeration)
+  startedAt: string;
   subdomains: Subdomain[];
   liveHosts: LiveHost[] | null; // null = probe not run
   probeError: string | null;
+  openPorts: OpenPort[] | null; // null = port scan not run
+  portFindings: Finding[]; // merged into the findings view + risk score
+  portsError: string | null;
   fingerprints: Fingerprint[] | null; // null = fingerprint not run
   fingerprintError: string | null;
   findings: Finding[] | null; // null = analysis not run (Stage 4a)
   findingsError: string | null;
   nuclei: NucleiResult | null; // null = nuclei not run (Stage 4b)
   nucleiError: string | null;
+  report: { markdown: string; savedAs: string | null } | null;
+  reportError: string | null;
 };
 
 /**
@@ -89,8 +102,12 @@ const errMsg = (e: unknown) =>
 export default function Home() {
   const [domain, setDomain] = useState("");
   const [activeScan, setActiveScan] = useState(false);
+  const [deepCve, setDeepCve] = useState(false);
+  const [scanIntensity, setScanIntensity] =
+    useState<ScanIntensity>(DEFAULT_INTENSITY);
   const [loading, setLoading] = useState(false);
   const [probing, setProbing] = useState(false);
+  const [scanningPorts, setScanningPorts] = useState(false);
   const [fingerprinting, setFingerprinting] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [scanningNuclei, setScanningNuclei] = useState(false);
@@ -99,19 +116,86 @@ export default function Home() {
   const [result, setResult] = useState<ScanState | null>(null);
 
   const canScan = domain.trim().length > 0;
-  const busy = loading || probing || fingerprinting || analyzing || scanningNuclei;
+  const busy =
+    loading ||
+    probing ||
+    scanningPorts ||
+    fingerprinting ||
+    analyzing ||
+    scanningNuclei;
   const liveClass = classifyTarget(domain);
 
-  // Stage 2 (probe) -> Stage 3 (fingerprint). Shared by both modes.
+  // Merge analysis + nuclei + port findings into one deduped, severity-sorted set.
+  function mergedFindings(state: ScanState): Finding[] {
+    return sortFindings(
+      dedupeFindings([
+        ...(state.findings ?? []),
+        ...(state.nuclei?.findings ?? []),
+        ...state.portFindings,
+      ]),
+    );
+  }
+
+  function buildScanResult(state: ScanState): ScanResult {
+    const merged = mergedFindings(state);
+    const stagesRun = ["Discovery"];
+    if (state.liveHosts) stagesRun.push("Live probe");
+    if (state.openPorts) stagesRun.push("Port scan");
+    if (state.fingerprints) stagesRun.push("Fingerprint");
+    if (state.findings) stagesRun.push("Analysis");
+    if (state.nuclei) stagesRun.push("nuclei");
+    return {
+      target: state.domain,
+      mode: state.mode,
+      scanIntensity,
+      authTier: state.liveHosts ? "Active (attested)" : "Passive (OSINT only)",
+      startedAt: state.startedAt,
+      endedAt: new Date().toISOString(),
+      stagesRun,
+      subdomains: state.subdomains,
+      liveHosts: state.liveHosts ?? [],
+      openPorts: state.openPorts ?? [],
+      fingerprints: state.fingerprints ?? [],
+      findings: merged,
+      riskScore: riskScore(merged),
+    };
+  }
+
+  // Persist the completed scan (JSON) and fetch its Markdown report for download.
+  async function finalizeReport(state: ScanState) {
+    try {
+      const report = await postJSON<{ markdown: string; savedAs: string | null }>(
+        "/api/scan/report",
+        { scanResult: buildScanResult(state) },
+      );
+      setResult({ ...state, report });
+    } catch (err) {
+      setResult({ ...state, reportError: errMsg(err) });
+    }
+  }
+
+  function hostPortKey(url: string): string {
+    try {
+      const u = new URL(url);
+      const port = u.port || (u.protocol === "https:" ? "443" : "80");
+      return `${u.hostname}:${port}`;
+    } catch {
+      return url;
+    }
+  }
+
+  // Active chain: probe -> port scan -> fingerprint -> analysis -> nuclei -> report.
   async function runActiveStages(base: ScanState, toProbe: Subdomain[]) {
     let state = base;
 
+    // Stage 2 — live probe
     setProbing(true);
     let liveHosts: LiveHost[] = [];
     try {
       liveHosts = await postJSON<LiveHost[]>("/api/scan/probe", {
         subdomains: toProbe,
         activeAllowed: true,
+        scanIntensity,
       });
       state = { ...state, liveHosts };
       setResult(state);
@@ -122,19 +206,70 @@ export default function Home() {
       setProbing(false);
     }
 
-    if (liveHosts.length === 0) return;
+    if (liveHosts.length === 0) {
+      await finalizeReport(state);
+      return;
+    }
 
+    // Stage 2b — port scan; feed newly-found open web ports back through probe
+    setScanningPorts(true);
+    try {
+      const ports = await postJSON<{
+        openPorts: OpenPort[];
+        findings: Finding[];
+        webTargets: string[];
+      }>("/api/scan/ports", { liveHosts, activeAllowed: true, scanIntensity });
+      state = { ...state, openPorts: ports.openPorts, portFindings: ports.findings };
+      setResult(state);
+
+      const known = new Set(liveHosts.map((h) => hostPortKey(h.url)));
+      const newTargets = ports.webTargets.filter((t) => !known.has(t));
+      if (newTargets.length > 0) {
+        try {
+          const extraSubs: Subdomain[] = newTargets.map((t) => ({
+            name: t,
+            resolves: true,
+            records: {},
+          }));
+          const extra = await postJSON<LiveHost[]>("/api/scan/probe", {
+            subdomains: extraSubs,
+            activeAllowed: true,
+            scanIntensity,
+          });
+          const seen = new Set(liveHosts.map((h) => h.url));
+          for (const h of extra) {
+            if (!seen.has(h.url)) {
+              liveHosts.push(h);
+              seen.add(h.url);
+            }
+          }
+          state = { ...state, liveHosts };
+          setResult(state);
+        } catch {
+          /* re-probing new web ports is best-effort */
+        }
+      }
+    } catch (err) {
+      setResult({ ...state, portsError: errMsg(err) });
+      // a port-scan failure shouldn't abort the rest of the chain
+    } finally {
+      setScanningPorts(false);
+    }
+
+    // Stage 3 — fingerprint
     setFingerprinting(true);
     let fingerprints: Fingerprint[] = [];
     try {
       fingerprints = await postJSON<Fingerprint[]>("/api/scan/fingerprint", {
         hosts: liveHosts,
         activeAllowed: true,
+        scanIntensity,
       });
       state = { ...state, fingerprints };
       setResult(state);
     } catch (err) {
       setResult({ ...state, fingerprintError: errMsg(err) });
+      await finalizeReport(state);
       return;
     } finally {
       setFingerprinting(false);
@@ -152,6 +287,7 @@ export default function Home() {
       setResult(state);
     } catch (err) {
       setResult({ ...state, findingsError: errMsg(err) });
+      await finalizeReport(state);
       return;
     } finally {
       setAnalyzing(false);
@@ -165,7 +301,12 @@ export default function Home() {
       const res = await fetch("/api/scan/nuclei", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ liveHosts, activeAllowed: true }),
+        body: JSON.stringify({
+          liveHosts,
+          activeAllowed: true,
+          deepCve,
+          scanIntensity,
+        }),
       });
       if (!res.ok || !res.body) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -204,13 +345,17 @@ export default function Home() {
           }
         }
       }
-      setResult({ ...state, nuclei: { findings: streamed, status, message } });
+      state = { ...state, nuclei: { findings: streamed, status, message } };
+      setResult(state);
     } catch (err) {
-      setResult({ ...state, nucleiError: errMsg(err) });
+      state = { ...state, nucleiError: errMsg(err) };
+      setResult(state);
     } finally {
       setScanningNuclei(false);
       setNucleiProgress(null);
     }
+
+    await finalizeReport(state);
   }
 
   async function runScan() {
@@ -223,18 +368,27 @@ export default function Home() {
     setResult(null);
     setNucleiProgress(null);
 
+    console.info(`[aegis] scan started — intensity: ${scanIntensity}`);
+    const startedAt = new Date().toISOString();
+
     const makeState = (subs: Subdomain[]): ScanState => ({
       mode,
       domain: host,
+      startedAt,
       subdomains: subs,
       liveHosts: null,
       probeError: null,
+      openPorts: null,
+      portFindings: [],
+      portsError: null,
       fingerprints: null,
       fingerprintError: null,
       findings: null,
       findingsError: null,
       nuclei: null,
       nucleiError: null,
+      report: null,
+      reportError: null,
     });
 
     // Direct target: skip discovery, probe + fingerprint the single host.
@@ -256,7 +410,10 @@ export default function Home() {
       const state = makeState(subdomains);
       setResult(state);
       setLoading(false);
-      if (!wantActive) return;
+      if (!wantActive) {
+        await finalizeReport(state); // persist the passive scan too
+        return;
+      }
       await runActiveStages(state, subdomains.filter((s) => s.resolves));
     } catch (err) {
       setError(errMsg(err));
@@ -268,13 +425,30 @@ export default function Home() {
     ? "Scanning"
     : probing
       ? "Probing"
-      : fingerprinting
-        ? "Mapping"
-        : analyzing
-          ? "Analyzing"
-          : scanningNuclei
-            ? "Nuclei"
-            : "Scan";
+      : scanningPorts
+        ? "Ports"
+        : fingerprinting
+          ? "Mapping"
+          : analyzing
+            ? "Analyzing"
+            : scanningNuclei
+              ? "Nuclei"
+              : "Scan";
+
+  function downloadReport() {
+    if (!result?.report) return;
+    const blob = new Blob([result.report.markdown], {
+      type: "text/markdown;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `aegis-report-${result.domain.replace(/[^a-z0-9.-]/gi, "_") || "scan"}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="min-h-screen bg-canvas text-text">
@@ -375,6 +549,31 @@ export default function Home() {
 
           {/* Active-scan control — the signature */}
           <div className="mt-5 border-t border-border-soft pt-4">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <span className="text-sm font-medium">Scan intensity</span>
+                <p className="mt-1 text-[13px] leading-relaxed text-text-dim">
+                  How hard active stages hit the target — polite is slow and kind,
+                  aggressive is fast.
+                </p>
+              </div>
+              <select
+                value={scanIntensity}
+                onChange={(e) =>
+                  setScanIntensity(e.target.value as ScanIntensity)
+                }
+                className="h-9 shrink-0 rounded-lg border border-border bg-control px-3 font-mono text-[13px] text-text outline-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent-ring"
+              >
+                {(["polite", "normal", "aggressive"] as ScanIntensity[]).map(
+                  (key) => (
+                    <option key={key} value={key}>
+                      {INTENSITY_PROFILES[key].label}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -412,6 +611,29 @@ export default function Home() {
                 </p>
               </div>
             )}
+
+            {activeScan && (
+              <div className="mt-3 flex items-start justify-between gap-4 border-t border-border-soft pt-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Deep CVE scan</span>
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-text-faint">
+                      nuclei · cve
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[13px] leading-relaxed text-text-dim">
+                    Adds nuclei&apos;s full CVE template set (~4k more templates).
+                    Much slower, and its exploit payloads can crash fragile
+                    single-host targets (e.g. Juice Shop).
+                  </p>
+                </div>
+                <Switch
+                  checked={deepCve}
+                  onChange={setDeepCve}
+                  label="Deep CVE scan"
+                />
+              </div>
+            )}
           </div>
         </section>
 
@@ -421,7 +643,19 @@ export default function Home() {
             <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-text-faint">
               Results
             </h2>
-            {result && <ModeBadge mode={result.mode} />}
+            <div className="flex items-center gap-2">
+              {result?.report && (
+                <button
+                  type="button"
+                  onClick={downloadReport}
+                  className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-raised px-3 py-1.5 text-[12px] font-medium text-text-dim outline-none transition-colors hover:border-accent hover:text-text focus-visible:ring-2 focus-visible:ring-accent-ring"
+                >
+                  <DownloadGlyph className="h-3.5 w-3.5" />
+                  Download report
+                </button>
+              )}
+              {result && <ModeBadge mode={result.mode} />}
+            </div>
           </div>
 
           {loading ? (
@@ -467,6 +701,18 @@ export default function Home() {
                   <LiveHostsBody result={result} probing={probing} />
                 </div>
               )}
+
+              {activeScan &&
+                (scanningPorts || result.openPorts || result.portsError) && (
+                  <div>
+                    <StageHeading
+                      label="Open ports"
+                      stage="Stage 2b · Active"
+                      tone="caution"
+                    />
+                    <PortsBody result={result} scanningPorts={scanningPorts} />
+                  </div>
+                )}
 
               {activeScan &&
                 (fingerprinting ||
@@ -822,9 +1068,13 @@ function FindingsBody({
   }
   if (!result.findings) return null;
 
-  // Merge Phase 5 (analysis) findings with nuclei (Stage 4b) findings, deduped.
+  // Merge analysis + nuclei + port findings, deduped and severity-sorted.
   const merged = sortFindings(
-    dedupeFindings([...result.findings, ...(result.nuclei?.findings ?? [])]),
+    dedupeFindings([
+      ...result.findings,
+      ...(result.nuclei?.findings ?? []),
+      ...result.portFindings,
+    ]),
   );
   const hosts = result.liveHosts ?? [];
 
@@ -990,6 +1240,94 @@ function RiskHeadline({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function PortsBody({
+  result,
+  scanningPorts,
+}: {
+  result: ScanState;
+  scanningPorts: boolean;
+}) {
+  if (scanningPorts) {
+    return (
+      <StageLoading
+        title="Scanning ports…"
+        detail="TCP-connect scan over ~90 common ports per host, paced by the intensity setting."
+      />
+    );
+  }
+  if (result.portsError) {
+    return <ErrorBanner title="Port scan failed" message={result.portsError} />;
+  }
+
+  const ports = result.openPorts;
+  if (!ports) return null;
+  if (ports.length === 0) {
+    return <EmptyNote>No open ports found on the scanned hosts.</EmptyNote>;
+  }
+
+  const severityByHostPort = new Map(
+    result.portFindings.map((f) => [f.host, f.severity]),
+  );
+
+  return (
+    <div>
+      <p className="mb-3 flex items-baseline gap-2">
+        <span className="font-mono text-2xl font-semibold tabular-nums text-text">
+          {ports.length}
+        </span>
+        <span className="text-sm text-text-dim">
+          open {ports.length === 1 ? "port" : "ports"}
+        </span>
+      </p>
+
+      <div className="max-h-[50vh] overflow-auto rounded-xl border border-border bg-surface">
+        <table className="w-full border-collapse text-[13px]">
+          <thead className="sticky top-0 z-10 bg-surface">
+            <tr className="border-b border-border">
+              <th className="w-8 px-3 py-2.5" aria-label="Risk" />
+              <Th>Port</Th>
+              <Th>Service</Th>
+              <Th>Host</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {ports.map((p, i) => {
+              const risky =
+                severityByHostPort.get(`${p.host}:${p.port}`) === "HIGH";
+              return (
+                <tr
+                  key={`${p.host}-${p.port}-${i}`}
+                  className="border-b border-border-soft transition-colors last:border-0 hover:bg-white/[0.02]"
+                >
+                  <td className="px-3 py-2.5">
+                    <span
+                      title={risky ? "Risky exposed service" : "Open"}
+                      className={`inline-block h-2 w-2 rounded-full ${
+                        risky ? "bg-signal-critical" : "bg-text-faint/40"
+                      }`}
+                    />
+                  </td>
+                  <td className="px-3 py-2.5 font-mono tabular-nums text-text">
+                    {p.port}
+                  </td>
+                  <td
+                    className={`px-3 py-2.5 ${risky ? "font-medium text-signal-critical" : "text-text-dim"}`}
+                  >
+                    {p.service}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[12px] text-text-dim break-all">
+                    {p.host}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1305,6 +1643,23 @@ function ScanGlyph({ className }: { className?: string }) {
     >
       <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
       <path d="M3 12h18" />
+    </svg>
+  );
+}
+
+function DownloadGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3v12M7 11l5 4 5-4M5 21h14" />
     </svg>
   );
 }

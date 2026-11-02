@@ -1,5 +1,6 @@
 import { load } from "cheerio";
 import pLimit from "p-limit";
+import { delay, intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
 import type { LiveHost, Subdomain } from "@/types/recon";
 
 /**
@@ -12,12 +13,12 @@ import type { LiveHost, Subdomain } from "@/types/recon";
  */
 
 const PROBE_TIMEOUT_MS = 5_000;
-const PROBE_CONCURRENCY = 10;
 const SCHEMES = ["https", "http"] as const;
 
 export async function probe(
   subdomains: Subdomain[],
   activeAllowed: boolean,
+  intensityValue: ScanIntensity | string = "polite",
 ): Promise<LiveHost[]> {
   if (!activeAllowed) {
     throw new Error(
@@ -25,14 +26,20 @@ export async function probe(
     );
   }
 
+  const profile = intensityProfile(intensityValue);
   const targets = subdomains.filter((s) => s.resolves);
-  const limit = pLimit(PROBE_CONCURRENCY);
+  const limit = pLimit(profile.concurrency);
 
   const tasks: Promise<LiveHost | null>[] = [];
   for (const sub of targets) {
     const ip = sub.records.A?.[0] ?? "";
     for (const scheme of SCHEMES) {
-      tasks.push(limit(() => probeOne(`${scheme}://${sub.name}`, ip)));
+      tasks.push(
+        limit(async () => {
+          if (profile.delayMs) await delay(profile.delayMs);
+          return probeOne(`${scheme}://${sub.name}`, ip);
+        }),
+      );
     }
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fingerprint } from "@/lib/recon/fingerprint";
+import { resolveIntensity } from "@/lib/recon/intensity";
 import type { LiveHost } from "@/types/recon";
 
 export const runtime = "nodejs";
@@ -14,9 +15,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { hosts, activeAllowed } = (body ?? {}) as {
+  const { hosts, activeAllowed, scanIntensity } = (body ?? {}) as {
     hosts?: unknown;
     activeAllowed?: unknown;
+    scanIntensity?: unknown;
   };
 
   if (!Array.isArray(hosts)) {
@@ -27,7 +29,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const fingerprints = await fingerprint(hosts as LiveHost[], activeAllowed === true);
+    const fingerprints = await fingerprint(
+      hosts as LiveHost[],
+      activeAllowed === true,
+      resolveIntensity(scanIntensity),
+    );
     return NextResponse.json(fingerprints);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Fingerprint failed.";

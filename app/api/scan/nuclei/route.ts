@@ -1,4 +1,5 @@
 import { runNucleiStream } from "@/lib/recon/nuclei";
+import { resolveIntensity } from "@/lib/recon/intensity";
 import type { LiveHost, NucleiEvent } from "@/types/recon";
 
 export const runtime = "nodejs";
@@ -13,9 +14,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { liveHosts, activeAllowed } = (body ?? {}) as {
+  const { liveHosts, activeAllowed, deepCve, scanIntensity } = (body ?? {}) as {
     liveHosts?: unknown;
     activeAllowed?: unknown;
+    deepCve?: unknown;
+    scanIntensity?: unknown;
   };
 
   if (!Array.isArray(liveHosts)) {
@@ -49,7 +52,11 @@ export async function POST(request: Request) {
           onFinding: (finding) => send({ type: "finding", finding }),
           onProgress: (message) => send({ type: "progress", message }),
         },
-        { signal: request.signal },
+        {
+          signal: request.signal,
+          deepCve: deepCve === true,
+          intensity: resolveIntensity(scanIntensity),
+        },
       );
 
       send({ type: "status", status: result.status, message: result.message });
