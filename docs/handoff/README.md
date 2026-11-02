@@ -1,11 +1,13 @@
 # Aegis handoff: start here
 
-Last updated 2026-11-02. This folder lets someone new (Amul, or a fresh Claude Code
-session) continue the build without the original chat.
+> **Current state lives in [`CONTEXT.md`](CONTEXT.md)** (updated 2026-11-03). It
+> holds everything a new Claude Code session needs: setup, running, architecture,
+> scanners, rules, gotchas, done / next. The rest of this file is the original
+> 2026-11-02 handoff and is kept for history. Where the two disagree, CONTEXT.md wins.
 
 ## Read in this order
 
-1. `docs/handoff/README.md` (this file): current state and how to resume.
+1. `docs/handoff/CONTEXT.md`: the full current context. Start here.
 2. `docs/LOOP-PLAN.md`: the build checklist, decisions, and progress log. Work
    always continues from the first unchecked item.
 3. `docs/handoff/session-context.md`: research and reasoning from the planning

@@ -67,7 +67,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
       source, last scanned), Add target (target / tags / label, bulk paste),
       discovered domains -> add, target drawer (stats, tabs, gauge, rescan,
       report), authorization panel (attest / DNS verify).
-- [ ] 10. Scans: list (state, progress, type, targets, new / open / closed, stop,
+- [x] 10. Scans: list (state, progress, type, targets, new / open / closed, stop,
       delete), New Scan modal (scanner cards, passive vs full, target / tag
       selection, run now or schedule, email chips), scan detail with live
       progress + raw results download, Scheduled tab.
@@ -216,3 +216,6 @@ Feature research: `docs/hostedscan-reference/README.md`.
   counted as /admin, /swagger, /api-docs, Cloudflare edge ports labelled cPanel, and
   a P-256 EC key reported as a "weak 256-bit RSA key". nuclei was throttled by
   Cloudflare / Netlify: scans now report "Partial" and keep unchecked risks open.
+- 2026-11-03: item 10 ticked: list / stop / delete / detail with raw download, the
+  New Scan wizard and the Scheduled Scans tab cover it (sending email is item 14).
+  Full working context for other sessions written to docs/handoff/CONTEXT.md.

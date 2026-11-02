@@ -1,7 +1,10 @@
 # Aegis — External Attack Surface Assessment
 
-> **On branch `aegis-platform`?** Read `docs/BRANCH-STATUS.md` first: what this branch
-> adds on top of `main`, what is tested, and what changed in `main`'s code.
+> **On branch `aegis-platform`?** Read **`docs/handoff/CONTEXT.md`** first. It holds the
+> full working context: setup, how to run everything, architecture, scanners, rules,
+> gotchas, what's done and what's next. Then `docs/LOOP-PLAN.md` and
+> `docs/BRANCH-STATUS.md`. On that branch, Juice Shop runs on **3100** and Aegis on
+> **3001**, and the authorization tiers in the code are described in CONTEXT.md section 8.
 
 Aegis is an External Attack Surface Assessment (EASS) tool: given an authorized
 target scope, it enumerates the externally reachable surface, fingerprints what's
@@ -188,8 +191,8 @@ npm run lint    # ESLint
 ### Local test target (OWASP Juice Shop)
 
 ```bash
-docker run -d -p 3000:3000 --name aegis-juiceshop bkimminich/juice-shop
-# → http://localhost:3000
+docker run -d -p 3100:3000 --name aegis-juiceshop bkimminich/juice-shop
+# → http://localhost:3100  (3000 clashes with the Next dev server)
 docker rm -f aegis-juiceshop   # tear down
 ```
 
