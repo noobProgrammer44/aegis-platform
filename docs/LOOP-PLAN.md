@@ -63,7 +63,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
 - [x] 8. Dashboard: period selector, scans-in-progress / scheduled pill, New Scan,
       health gauge + about-your-score, severity tiles + accepted / closed, recent
       scans / risks / discovered domains, insight cards.
-- [ ] 9. Targets: table (grouping, search, sort, filters, tags, grade, discovered,
+- [x] 9. Targets: table (grouping, search, sort, filters, tags, grade, discovered,
       source, last scanned), Add target (target / tags / label, bulk paste),
       discovered domains -> add, target drawer (stats, tabs, gauge, rescan,
       report), authorization panel (attest / DNS verify).
@@ -129,3 +129,12 @@ Feature research: `docs/hostedscan-reference/README.md`.
   `components/dashboard/`. Period selector is plain links (`?period=30d|90d|1y|all`).
   `npm run seed:demo` (tsx) fills `data/demo.db` with sample data; browse it with
   `AEGIS_DB_PATH=data/demo.db npm run dev -- -p 3001`. Checked in the browser.
+- 2026-11-02: merged Amaan's origin/main 474096c (port scan, Markdown reports, scan
+  intensity, scoped nuclei); his page changes now live in `/quick-scan`.
+- 2026-11-02: item 9 done except the authorization panel (waits for item 3). Server
+  actions in `app/(app)/targets/actions.ts` (add / bulk paste, edit label + tags,
+  delete, promote discovered domain; all validated server-side and audit-logged).
+  `components/targets/`: table with search, sort, grade / tag filters and tag
+  grouping; add modal; drawer with gauge, stat strip, Risks / Recent scans /
+  Metadata tabs; Discovered tab. Pure table logic in `lib/domain/target-table.ts`.
+  Checked in the browser on demo data. Next: items 4-6 so scans write real risks.
