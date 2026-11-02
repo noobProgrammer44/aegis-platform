@@ -1,0 +1,84 @@
+/**
+ * Core domain types for the Aegis recon pipeline.
+ * Shared across the 4 stages: discovery → live probe → crawl/fingerprint → surface analysis.
+ */
+
+/** DNS records collected for a subdomain during discovery. */
+export interface Subdomain {
+  name: string;
+  /** True if at least one DNS record resolved; false for unresolved (empty records). */
+  resolves: boolean;
+  records: {
+    A?: string[];
+    AAAA?: string[];
+    CNAME?: string[];
+    MX?: string[];
+    NS?: string[];
+    TXT?: string[];
+  };
+}
+
+/** A subdomain confirmed reachable over HTTP(S) during the live probe. */
+export interface LiveHost {
+  /** Final URL after redirects. */
+  url: string;
+  status: number;
+  title: string;
+  /** `Server` response header ("" if not sent). */
+  server: string;
+  /** `X-Powered-By` response header (absent if not sent). */
+  xPoweredBy?: string;
+  /** Resolved IP carried over from Stage 1 ("" if unknown). */
+  ip: string;
+  responseTimeMs: number;
+  /** Content length in bytes (Content-Length header, else measured body size). */
+  contentLength?: number;
+  /** All response headers captured during the probe (lowercased keys). */
+  headers: Record<string, string>;
+}
+
+/** Technology stack, exposed paths, and crawled links identified for a live host. */
+export interface Fingerprint {
+  host: string;
+  technologies: { name: string; version?: string }[];
+  /** Interesting paths that returned a non-404 response, e.g. "/robots.txt (200)". */
+  exposedPaths: string[];
+  /** Internal links collected from a shallow (depth-1) crawl of the host. */
+  links: string[];
+}
+
+/** Severity of a finding, ordered INFO < LOW < MEDIUM < HIGH < CRITICAL. */
+export type Severity = "INFO" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+/** A single assessed exposure produced by surface analysis. */
+export interface Finding {
+  host: string;
+  title: string;
+  severity: Severity;
+  description: string;
+  recommendation: string;
+}
+
+/** Result of the nuclei deep-vuln stage, with graceful-degradation status. */
+export interface NucleiResult {
+  findings: Finding[];
+  status: "ok" | "partial" | "unavailable" | "error";
+  message?: string;
+}
+
+/** One line of the nuclei NDJSON stream (findings + progress + terminal status). */
+export type NucleiEvent =
+  | { type: "finding"; finding: Finding }
+  | { type: "progress"; message: string }
+  | { type: "status"; status: NucleiResult["status"]; message?: string };
+
+/** The complete result of a scan across all four stages. */
+export interface ScanResult {
+  domain: string;
+  subdomains: Subdomain[];
+  liveHosts: LiveHost[];
+  fingerprints: Fingerprint[];
+  findings: Finding[];
+  riskScore: number;
+  aiSummary?: string;
+}

@@ -1,0 +1,112 @@
+# Aegis — External Attack Surface Assessment
+
+Aegis is an External Attack Surface Assessment (EASS) tool: given an authorized
+target scope, it enumerates the externally reachable surface, fingerprints what's
+running, probes for exposures, and produces a human-readable risk summary. Built
+on **Next.js 15 (App Router) + TypeScript + Tailwind v4**, Node-first, with
+**nuclei orchestrated via Docker** for deep vulnerability detection.
+
+> ⚠️ **Authorized use only.** Aegis performs active reconnaissance and
+> vulnerability scanning. Only ever run it against assets you own or have explicit
+> written authorization to test. See the authorization model below — it is a
+> hard gate, not a guideline.
+
+## Architecture: 4-stage recon pipeline
+
+The engine runs as a staged pipeline. Each stage narrows and enriches the data
+from the previous one. Stages are concurrency-bounded with **`p-limit`** so a
+single run never stampedes a target.
+
+1. **Discovery** — Expand the authorized scope into candidate assets: subdomain
+   enumeration, DNS resolution, CIDR/host expansion, and passive OSINT. Output:
+   a deduplicated set of candidate hosts/endpoints. *(Passive-only by default —
+   no packets to the target beyond DNS.)*
+
+2. **Live probe** — Determine which candidates are actually reachable. HTTP(S)
+   probing across common ports/schemes, following redirects, capturing status
+   codes, response headers, TLS metadata, and server banners. Output: the set of
+   **live** endpoints with their raw HTTP metadata.
+
+3. **Crawl / fingerprint** — For each live endpoint, fetch and parse content with
+   **`cheerio`**, extract links/forms/script sources, and identify technologies
+   with **`simple-wappalyzer`** (maintained, browserless Wappalyzer-rule engine
+   that matches on HTML + headers + script srcs + cookies + meta). Output: a
+   technology/stack fingerprint and an expanded endpoint map per host.
+   - **Note for SPAs:** a bare app shell (e.g. an Angular/React root page) often
+     exposes *no* fingerprints at `/`. Fingerprinting must also fetch linked JS
+     bundles (`main.js`, etc.) to see the real stack. This is expected behavior,
+     not a detector failure.
+
+4. **Surface analysis** — Correlate everything into findings: exposed
+   technologies and versions, risky headers/misconfigurations, interesting
+   endpoints, and — for in-scope targets at the right authorization tier — run
+   **nuclei** for templated vulnerability detection (see below). Output: a
+   structured findings set that feeds the AI summary.
+
+## Node-first, with nuclei via Docker
+
+Stages 1–3 and the orchestration layer are **pure Node/TypeScript** — no external
+binaries required for the baseline recon. Deep, templated vulnerability detection
+is delegated to **nuclei**, run as a **Docker container** (`projectdiscovery/nuclei:latest`)
+rather than a local install. This keeps the scanner version pinned/reproducible,
+sandboxes it from the host, and avoids a Go toolchain dependency.
+
+Aegis shells out to Docker (e.g. `docker run --rm projectdiscovery/nuclei:latest -u <target> -json ...`),
+streams nuclei's JSON output back into the pipeline, and merges it into the
+stage-4 findings. nuclei only runs for targets that clear **Tier 3** authorization.
+
+## Authorization model (3 tiers)
+
+Authorization is enforced per target **before** any stage touches it. Higher tiers
+are strictly more invasive and require stronger proof of authorization. A target
+may never be escalated past the tier it was authorized at.
+
+| Tier | Scope of activity | What it gates | Requirement |
+|------|-------------------|---------------|-------------|
+| **Tier 1 — Passive** | OSINT & DNS only; no direct packets to target assets | Discovery | In-scope declaration |
+| **Tier 2 — Active (non-intrusive)** | Live probing, crawling, fingerprinting | Live probe + crawl/fingerprint | Confirmed ownership / scope attestation |
+| **Tier 3 — Intrusive** | Templated vulnerability scanning (nuclei) | Surface analysis vuln scan | Explicit written authorization + rate limits |
+
+The pipeline checks a target's granted tier at each stage boundary and refuses to
+execute a stage above that tier.
+
+## AI summary (OpenRouter)
+
+After stage 4, the structured findings are sent to an LLM via **OpenRouter** to
+produce a prioritized, human-readable executive summary (risk narrative,
+notable exposures, suggested next actions). The key lives in `.env.local` as
+`OPENROUTER_API_KEY` (gitignored). The AI layer is **summary/triage only** — it
+never decides authorization and never triggers scanning.
+
+## Tech stack & layout
+
+- **Framework:** Next.js 15.5.x, App Router (`app/`), TypeScript, Tailwind CSS v4, ESLint
+- **Runtime:** Node (dev machine on v24; engines require Node ≥ 20)
+- **Key deps:** `p-limit` (concurrency bounding), `cheerio` (HTML parse/crawl),
+  `simple-wappalyzer` (tech fingerprinting)
+- **External:** Docker — `projectdiscovery/nuclei:latest` (scanner),
+  `bkimminich/juice-shop` (local test target)
+
+## Dev commands
+
+```bash
+npm run dev     # Next dev server (Turbopack)
+npm run build   # production build
+npm run start   # serve production build
+npm run lint    # ESLint
+```
+
+> ⚠️ **Port conflict:** the local test target (OWASP Juice Shop) runs on
+> **port 3000**, which is also Next.js's default dev port. Run the app on another
+> port to avoid a clash, e.g. `npm run dev -- -p 3001` (or stop Juice Shop first).
+
+### Local test target (OWASP Juice Shop)
+
+```bash
+docker run -d -p 3000:3000 --name aegis-juiceshop bkimminich/juice-shop
+# → http://localhost:3000
+docker rm -f aegis-juiceshop   # tear down
+```
+
+Juice Shop is intentionally vulnerable and is the only target to point intrusive
+(Tier 3 / nuclei) scanning at during development.
