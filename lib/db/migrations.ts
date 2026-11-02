@@ -250,4 +250,8 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE scans ADD COLUMN intensity TEXT NOT NULL DEFAULT 'polite';
   `,
+  // 3: scheduled scans remember their intensity too.
+  `
+  ALTER TABLE scheduled_scans ADD COLUMN intensity TEXT NOT NULL DEFAULT 'polite';
+  `,
 ];

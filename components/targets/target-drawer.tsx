@@ -164,7 +164,7 @@ export function TargetDrawer({
       }
     >
       <div className="flex flex-wrap gap-2">
-        <ButtonLink href={`/scans?new=1&target=${t.id}`} variant="primary" size="sm">
+        <ButtonLink href={`/scans/new?target=${t.id}`} variant="primary" size="sm">
           <Radar className="h-3.5 w-3.5" /> Scan this target again
         </ButtonLink>
         <ButtonLink href={`/reports?target=${t.id}`} size="sm">

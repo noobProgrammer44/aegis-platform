@@ -156,6 +156,7 @@ export interface ScheduledScan {
   /** Only for CUSTOM: repeat every N days. */
   intervalDays: number | null;
   scanTypes: ScanType[];
+  intensity: ScanIntensityLevel;
   targetsFilter: TargetsFilter;
   notifyEmails: string[];
   notifyPolicy: NotifyPolicy;

@@ -4,19 +4,19 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/result";
 import { getDb } from "@/lib/db/client";
 import { appendAudit } from "@/lib/db/repos/audit-log";
-import { createScan, deleteScan, getScan } from "@/lib/db/repos/scans";
-import { getTarget } from "@/lib/db/repos/targets";
-import { resolveIntensity } from "@/lib/recon/intensity";
-import { isAvailableScanType, SCANNER_CATALOG } from "@/lib/scans/catalog";
+import { deleteScan, getScan } from "@/lib/db/repos/scans";
+import { deleteScheduledScan, getScheduledScan, updateScheduledScan } from "@/lib/db/repos/scheduled-scans";
+import { listTargetsMatching } from "@/lib/db/repos/targets";
+import { isAvailableScanType } from "@/lib/scans/catalog";
 import { pumpQueue, stopScan } from "@/lib/scans/runner";
+import { queueScans, submitScanRequest } from "@/lib/services/scan-requests";
+import { parseScanRequest } from "@/lib/validation/scan-request";
 import { currentWorkspaceId } from "@/lib/workspace";
-import type { Target } from "@/types/aegis";
 
 /** Server actions for the Scans page. The browser only sends ids; everything else is checked here. */
 
 const ACTOR = "local user";
 const MAX_ID_LENGTH = 64;
-const MAX_TARGETS_PER_SCAN = 100;
 
 const fail = (message: string): ActionResult => ({ ok: false, message, errors: [] });
 const validId = (value: unknown): value is string =>
@@ -24,41 +24,59 @@ const validId = (value: unknown): value is string =>
 
 function refresh(): void {
   revalidatePath("/scans");
+  revalidatePath("/scans/new");
   revalidatePath("/dashboard");
   revalidatePath("/targets");
 }
 
-export async function startScanAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  const types = [...new Set(form.getAll("scanTypes").map(String))].filter(isAvailableScanType);
-  if (types.length === 0) return fail("Pick at least one scanner.");
-  const ids = [...new Set(form.getAll("targetIds").map(String))].filter(validId);
-  if (ids.length === 0) return fail("Pick at least one target.");
-  if (ids.length > MAX_TARGETS_PER_SCAN) return fail(`Scan at most ${MAX_TARGETS_PER_SCAN} targets at a time.`);
+/** The New Scan wizard's submit: queue now, or create a schedule. */
+export async function submitScanRequestAction(payload: unknown): Promise<ActionResult & { kind?: "queued" | "scheduled" }> {
+  const parsed = parseScanRequest(payload);
+  if (!parsed.ok) return fail(parsed.error);
+  const db = getDb();
+  const outcome = submitScanRequest(db, currentWorkspaceId(), parsed.value, new Date(), ACTOR);
+  if (outcome.kind === "error") return fail(outcome.message);
+  if (outcome.kind === "queued") pumpQueue(db);
+  refresh();
+  return outcome.kind === "queued"
+    ? { ok: true, kind: "queued", message: `Started ${outcome.scans.length} scan${outcome.scans.length === 1 ? "" : "s"}.`, errors: [] }
+    : { ok: true, kind: "scheduled", message: `Scheduled "${outcome.schedule.name}".`, errors: [] };
+}
 
+export async function toggleScheduleAction(id: string, enabled: boolean): Promise<ActionResult> {
+  if (!validId(id)) return fail("Unknown schedule.");
   const db = getDb();
   const ws = currentWorkspaceId();
-  const targets = ids.map((id) => getTarget(db, ws, id)).filter((t): t is Target => t !== null);
-  if (targets.length === 0) return fail("Those targets no longer exist.");
-  const intensity = resolveIntensity(form.get("intensity"));
+  if (!updateScheduledScan(db, ws, id, { enabled })) return fail("That schedule no longer exists.");
+  appendAudit(db, ws, { actor: ACTOR, action: enabled ? "schedule.resumed" : "schedule.paused", subject: id });
+  refresh();
+  return { ok: true, message: enabled ? "Resumed." : "Paused.", errors: [] };
+}
 
-  for (const type of types) {
-    const scan = createScan(db, ws, {
-      type,
-      intensity,
-      targetIds: targets.map((t) => t.id),
-      targets: targets.map((t) => t.target),
-    });
-    appendAudit(db, ws, {
-      actor: ACTOR,
-      action: "scan.requested",
-      subject: scan.id,
-      details: { type, intensity, targets: scan.targets },
-    });
-  }
+export async function deleteScheduleAction(id: string): Promise<ActionResult> {
+  if (!validId(id)) return fail("Unknown schedule.");
+  const db = getDb();
+  const ws = currentWorkspaceId();
+  if (!deleteScheduledScan(db, ws, id)) return fail("That schedule no longer exists.");
+  appendAudit(db, ws, { actor: ACTOR, action: "schedule.deleted", subject: id });
+  refresh();
+  return { ok: true, message: "Deleted.", errors: [] };
+}
+
+/** Runs a schedule's scans now without changing its next run. */
+export async function runScheduleNowAction(id: string): Promise<ActionResult> {
+  if (!validId(id)) return fail("Unknown schedule.");
+  const db = getDb();
+  const ws = currentWorkspaceId();
+  const schedule = getScheduledScan(db, ws, id);
+  if (!schedule) return fail("That schedule no longer exists.");
+  const targets = listTargetsMatching(db, ws, schedule.targetsFilter);
+  if (targets.length === 0) return fail("No targets match this schedule.");
+  const types = schedule.scanTypes.filter(isAvailableScanType);
+  queueScans(db, ws, { types, targets, intensity: schedule.intensity, actor: ACTOR, scheduledBy: schedule.id });
   pumpQueue(db);
   refresh();
-  const names = types.map((t) => SCANNER_CATALOG[t].label).join(", ");
-  return { ok: true, message: `Queued ${names} for ${targets.length} target${targets.length === 1 ? "" : "s"}.`, errors: [] };
+  return { ok: true, message: `Started ${types.length} scan${types.length === 1 ? "" : "s"}.`, errors: [] };
 }
 
 export async function stopScanAction(id: string): Promise<ActionResult> {

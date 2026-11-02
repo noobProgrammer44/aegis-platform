@@ -2,15 +2,16 @@
 
 import { Plus, Radar, Square, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { deleteScanAction, stopScanAction } from "@/app/(app)/scans/actions";
 import { AutoRefresh } from "@/components/ui/auto-refresh";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState, PageHeader } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { SCAN_STATE_LABEL, SCAN_TYPE_LABEL, timeAgo } from "@/lib/ui/format";
-import type { Scan, Target } from "@/types/aegis";
-import { NewScanModal } from "./new-scan-modal";
+import { cx } from "@/lib/ui/cx";
+import type { Scan, ScheduledScan, Target } from "@/types/aegis";
+import { ScheduledTable } from "./scheduled-table";
 import { ScanStateBadge } from "./scan-state";
 
 const ACTIVE_STATES = ["QUEUED", "RUNNING", "STOPPING"];
@@ -42,22 +43,17 @@ function RowActions({ scan }: { scan: Scan }) {
 
 export function ScansView({
   scans,
+  schedules,
   targets,
-  openNew,
-  preselected,
-  authorizedIds,
-  unavailable,
+  tab,
 }: {
   scans: Scan[];
+  schedules: ScheduledScan[];
   targets: Target[];
-  openNew: boolean;
-  preselected: string[];
-  authorizedIds: string[];
-  unavailable: Record<string, string>;
+  tab: "scans" | "scheduled";
 }) {
-  const [creating, setCreating] = useState(openNew);
-  const close = useCallback(() => setCreating(false), []);
   const anyLive = scans.some((s) => ACTIVE_STATES.includes(s.state));
+  const tabs = [["scans", "Scans", "/scans"], ["scheduled", `Scheduled Scans (${schedules.length})`, "/scans?tab=scheduled"]] as const;
 
   return (
     <div className="px-8 py-8">
@@ -66,18 +62,29 @@ export function ScansView({
         title="Scans"
         description="Every scan of your targets. Running scans update live; finished ones keep their raw results."
         actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
+          <ButtonLink href="/scans/new" variant="primary">
             <Plus className="h-4 w-4" /> New scan
-          </Button>
+          </ButtonLink>
         }
       />
 
-      {scans.length === 0 ? (
+      <nav className="mb-5 flex gap-1 border-b border-border-soft" aria-label="Scan views">
+        {tabs.map(([value, label, href]) => (
+          <Link key={value} href={href} aria-current={tab === value ? "page" : undefined}
+            className={cx("-mb-px border-b-2 px-3 py-2 text-sm", tab === value ? "border-accent text-text" : "border-transparent text-text-faint hover:text-text")}>
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      {tab === "scheduled" ? (
+        <ScheduledTable schedules={schedules} targets={targets} />
+      ) : scans.length === 0 ? (
         <EmptyState
           icon={<Radar className="h-6 w-6" />}
           title="No scans yet"
           description="Start a scan of one or more targets. Findings become risks you can track over time."
-          action={<Button variant="primary" onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> New scan</Button>}
+          action={<ButtonLink href="/scans/new" variant="primary"><Plus className="h-4 w-4" /> New scan</ButtonLink>}
         />
       ) : (
         <Table>
@@ -119,7 +126,6 @@ export function ScansView({
         </Table>
       )}
 
-      <NewScanModal open={creating} onClose={close} targets={targets} preselected={preselected} authorizedIds={authorizedIds} unavailable={unavailable} />
     </div>
   );
 }

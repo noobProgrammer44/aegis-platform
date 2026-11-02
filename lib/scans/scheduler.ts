@@ -17,6 +17,7 @@ export function queueDueSchedules(db: DB, now: string): number {
       for (const type of schedule.scanTypes) {
         createScan(db, schedule.workspaceId, {
           type,
+          intensity: schedule.intensity,
           targetIds: targets.map((t) => t.id),
           targets: targets.map((t) => t.target),
           scheduledBy: schedule.id,

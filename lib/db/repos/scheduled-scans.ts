@@ -1,5 +1,6 @@
 import type {
   NotifyPolicy,
+  ScanIntensityLevel,
   Schedule,
   ScanType,
   ScheduledScan,
@@ -15,6 +16,7 @@ interface ScheduledScanRow {
   schedule: Schedule;
   interval_days: number | null;
   scan_types: string;
+  intensity: ScanIntensityLevel;
   targets_filter: string;
   notify_emails: string;
   notify_policy: NotifyPolicy;
@@ -30,6 +32,7 @@ export interface NewScheduledScan {
   schedule: Schedule;
   intervalDays?: number | null;
   scanTypes: ScanType[];
+  intensity?: ScanIntensityLevel;
   targetsFilter: TargetsFilter;
   notifyEmails?: string[];
   notifyPolicy?: NotifyPolicy;
@@ -51,6 +54,7 @@ const toScheduledScan = (row: ScheduledScanRow): ScheduledScan => ({
   schedule: row.schedule,
   intervalDays: row.interval_days,
   scanTypes: parseJson<ScanType[]>(row.scan_types, []),
+  intensity: row.intensity,
   targetsFilter: { ...EMPTY_FILTER, ...parseJson<Partial<TargetsFilter>>(row.targets_filter, {}) },
   notifyEmails: parseJson<string[]>(row.notify_emails, []),
   notifyPolicy: row.notify_policy,
@@ -68,6 +72,7 @@ const toParams = (s: ScheduledScan) => ({
   schedule: s.schedule,
   interval_days: s.intervalDays,
   scan_types: toJson(s.scanTypes),
+  intensity: s.intensity,
   targets_filter: toJson(s.targetsFilter),
   notify_emails: toJson(s.notifyEmails),
   notify_policy: s.notifyPolicy,
@@ -90,6 +95,7 @@ export function createScheduledScan(
     schedule: input.schedule,
     intervalDays: input.intervalDays ?? null,
     scanTypes: [...input.scanTypes],
+    intensity: input.intensity ?? "polite",
     targetsFilter: {
       targetIds: [...input.targetsFilter.targetIds],
       tags: [...input.targetsFilter.tags],
@@ -104,10 +110,11 @@ export function createScheduledScan(
   };
   db.prepare(
     `INSERT INTO scheduled_scans (id, workspace_id, name, schedule, interval_days, scan_types,
-       targets_filter, notify_emails, notify_policy, start_at, next_run, last_ran, enabled,
-       created_at)
-     VALUES (@id, @workspace_id, @name, @schedule, @interval_days, @scan_types, @targets_filter,
-       @notify_emails, @notify_policy, @start_at, @next_run, @last_ran, @enabled, @created_at)`,
+       intensity, targets_filter, notify_emails, notify_policy, start_at, next_run, last_ran,
+       enabled, created_at)
+     VALUES (@id, @workspace_id, @name, @schedule, @interval_days, @scan_types, @intensity,
+       @targets_filter, @notify_emails, @notify_policy, @start_at, @next_run, @last_ran, @enabled,
+       @created_at)`,
   ).run(toParams(scheduled));
   return scheduled;
 }
@@ -157,7 +164,8 @@ export function updateScheduledScan(
   };
   db.prepare(
     `UPDATE scheduled_scans SET name = @name, schedule = @schedule, interval_days = @interval_days,
-       scan_types = @scan_types, targets_filter = @targets_filter, notify_emails = @notify_emails,
+       scan_types = @scan_types, intensity = @intensity, targets_filter = @targets_filter,
+       notify_emails = @notify_emails,
        notify_policy = @notify_policy, start_at = @start_at, next_run = @next_run,
        last_ran = @last_ran, enabled = @enabled
      WHERE workspace_id = @workspace_id AND id = @id`,
