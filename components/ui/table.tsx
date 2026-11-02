@@ -5,14 +5,14 @@ import { cx } from "@/lib/ui/cx";
 
 export function Table({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cx("overflow-x-auto rounded-xl border border-border bg-surface", className)}>
-      <table className="w-full border-collapse text-sm">{children}</table>
+    <div className={cx("overflow-x-auto rounded-2xl border border-border bg-surface/90 backdrop-blur-sm", className)}>
+      <table className="w-full border-collapse text-[13px]">{children}</table>
     </div>
   );
 }
 
 export function THead({ children }: { children: ReactNode }) {
-  return <thead className="border-b border-border-soft bg-white/[0.02]">{children}</thead>;
+  return <thead className="border-b border-border-soft">{children}</thead>;
 }
 
 export function TBody({ children }: { children: ReactNode }) {
@@ -20,14 +20,14 @@ export function TBody({ children }: { children: ReactNode }) {
 }
 
 export function TR({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cx("transition-colors hover:bg-white/[0.02]", className)} {...props} />;
+  return <tr className={cx("anim-rise transition-colors duration-150 hover:bg-row-hover", className)} {...props} />;
 }
 
 export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
       className={cx(
-        "px-4 py-2.5 text-left font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-text-faint",
+        "px-4 py-2.5 text-left font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-text-faint",
         className,
       )}
       {...props}

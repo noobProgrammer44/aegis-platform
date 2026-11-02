@@ -10,33 +10,57 @@ export interface ToneClasses {
   dot: string;
 }
 
+/** Jay's severity accents: left edge bar, soft glow, SVG stroke. */
+export const SEVERITY_ACCENT: Record<ThreatLevel, { edge: string; glow: string; stroke: string }> = {
+  CRITICAL: {
+    edge: "shadow-[inset_3px_0_0_var(--signal-critical),0_18px_48px_-30px_var(--signal-critical)]",
+    glow: "drop-shadow-[0_0_6px_var(--signal-critical)]",
+    stroke: "var(--signal-critical)",
+  },
+  HIGH: {
+    edge: "shadow-[inset_3px_0_0_var(--signal-high),0_18px_48px_-30px_var(--signal-high)]",
+    glow: "drop-shadow-[0_0_6px_var(--signal-high)]",
+    stroke: "var(--signal-high)",
+  },
+  MEDIUM: {
+    edge: "shadow-[inset_3px_0_0_var(--signal-medium),0_18px_48px_-30px_var(--signal-medium)]",
+    glow: "drop-shadow-[0_0_6px_var(--signal-medium)]",
+    stroke: "var(--signal-medium)",
+  },
+  LOW: {
+    edge: "shadow-[inset_3px_0_0_var(--signal-low),0_18px_48px_-30px_var(--signal-low)]",
+    glow: "drop-shadow-[0_0_6px_var(--signal-low)]",
+    stroke: "var(--signal-low)",
+  },
+};
+
 export const SEVERITY_TONE: Record<ThreatLevel, ToneClasses> = {
   CRITICAL: {
     label: "Critical",
     text: "text-signal-critical",
-    bg: "bg-signal-critical/10",
-    border: "border-signal-critical/30",
+    bg: "bg-signal-critical/[0.08]",
+    border: "border-signal-critical/35",
     dot: "bg-signal-critical",
   },
   HIGH: {
     label: "High",
     text: "text-signal-high",
-    bg: "bg-signal-high/10",
-    border: "border-signal-high/30",
+    bg: "bg-signal-high/[0.08]",
+    border: "border-signal-high/35",
     dot: "bg-signal-high",
   },
   MEDIUM: {
     label: "Medium",
     text: "text-signal-medium",
-    bg: "bg-signal-medium/10",
-    border: "border-signal-medium/30",
+    bg: "bg-signal-medium/[0.08]",
+    border: "border-signal-medium/35",
     dot: "bg-signal-medium",
   },
   LOW: {
     label: "Low",
     text: "text-signal-low",
-    bg: "bg-signal-low/10",
-    border: "border-signal-low/30",
+    bg: "bg-signal-low/[0.08]",
+    border: "border-signal-low/35",
     dot: "bg-signal-low",
   },
 };

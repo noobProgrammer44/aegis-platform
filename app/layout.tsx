@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Aegis", template: "%s · Aegis" },
+  title: { default: "Aegis · Attack Surface Scanner", template: "%s · Aegis" },
   description:
     "External attack surface assessment: discover, probe, fingerprint, and triage a domain's exposure.",
 };

@@ -3,47 +3,52 @@
 :root {
   color-scheme: dark;
 
-  /* Surfaces — one cool slate hue, lightness shifts only */
-  --canvas: #0a0d12;
-  --surface: #11151b;
-  --surface-raised: #171c24;
-  --control: #0d1116;
+  /* Surfaces — deep ink blue, one hue, lightness shifts only */
+  --canvas: #060a12;
+  --surface: #0b111b;
+  --surface-raised: #121a27;
+  --control: #070c15;
 
-  /* Borders — low-opacity, felt not seen */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-soft: rgba(255, 255, 255, 0.055);
-  --border-strong: rgba(255, 255, 255, 0.14);
+  /* Borders — blue-tinted, low-opacity, felt not seen */
+  --border: rgba(148, 197, 255, 0.1);
+  --border-soft: rgba(148, 197, 255, 0.065);
+  --border-strong: rgba(148, 197, 255, 0.18);
 
-  /* Text — four levels */
-  --text: #e8edf3;
-  --text-dim: #97a3b2;
-  --text-faint: #616d7b;
+  /* Text — four levels (faint clears 4.5:1 on canvas and surface; ghost is disabled/locked only) */
+  --text: #eaf1f9;
+  --text-dim: #9eacbf;
+  --text-faint: #7a889b;
+  --text-ghost: #435064;
 
-  /* Accent — instrument cyan, the one signal color */
-  --accent: #2bb3c9;
-  --accent-hover: #3ac8df;
-  --accent-contrast: #041417;
-  --accent-ring: rgba(43, 179, 201, 0.38);
+  /* Interaction */
+  --row-hover: rgba(148, 197, 255, 0.035);
 
-  /* Caution — authorization amber */
-  --caution: #e0ad4e;
-  --caution-bg: rgba(217, 164, 65, 0.09);
-  --caution-border: rgba(217, 164, 65, 0.3);
+  /* Accent — scope cyan into sky: the scan, the sweep, the primary action */
+  --accent: #22d3ee;
+  --accent-2: #38bdf8;
+  --accent-hover: #67e8f9;
+  --accent-contrast: #03141a;
+  --accent-ring: rgba(34, 211, 238, 0.42);
 
-  /* Signal — severity scale (desaturated for dark) */
-  --signal-low: #5d82a8;
-  --signal-medium: #d9a441;
-  --signal-high: #e2763b;
-  --signal-critical: #e5544f;
-  --signal-live: #46a758;
-  --signal-closed: #6b7684;
+  /* Caution — authorization amber (the arm control and its warning only) */
+  --caution: #f59e0b;
+  --caution-bg: rgba(245, 158, 11, 0.08);
+  --caution-border: rgba(245, 158, 11, 0.34);
 
-  /* Health grades — green through red, A to F */
-  --grade-a: #46a758;
-  --grade-b: #8fb54a;
-  --grade-c: #d9a441;
-  --grade-d: #e2763b;
-  --grade-f: #e5544f;
+  /* Signal — severity scale, reserved for severity */
+  --signal-low: #818cf8;
+  --signal-medium: #facc15;
+  --signal-high: #fb923c;
+  --signal-critical: #f43f5e;
+  --signal-live: #34d399;
+  --signal-closed: #64748b;
+
+  /* Health grades: green through red, A to F (same family as the severity scale) */
+  --grade-a: #34d399;
+  --grade-b: #a3e635;
+  --grade-c: #facc15;
+  --grade-d: #fb923c;
+  --grade-f: #f43f5e;
 }
 
 @theme inline {
@@ -59,8 +64,11 @@
   --color-text: var(--text);
   --color-text-dim: var(--text-dim);
   --color-text-faint: var(--text-faint);
+  --color-text-ghost: var(--text-ghost);
+  --color-row-hover: var(--row-hover);
 
   --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
   --color-accent-hover: var(--accent-hover);
   --color-accent-contrast: var(--accent-contrast);
   --color-accent-ring: var(--accent-ring);
@@ -94,14 +102,112 @@
 }
 
 body {
-  background: var(--canvas);
+  background:
+    radial-gradient(1100px 560px at 78% -12%, rgba(34, 211, 238, 0.11), transparent 62%),
+    radial-gradient(900px 520px at -8% -6%, rgba(56, 189, 248, 0.07), transparent 60%),
+    var(--canvas);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+/* Survey grid: the scope's graph paper, fading out below the fold */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(148, 197, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 197, 255, 0.04) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 70% at 60% 0%, #000 25%, transparent 75%);
+}
+
 ::selection {
-  background: rgba(43, 179, 201, 0.28);
+  background: rgba(34, 211, 238, 0.28);
   color: var(--text);
+}
+
+/* ---------- Motion ---------- */
+
+@keyframes sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes blip {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes ping-soft {
+  from {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.anim-sweep {
+  animation: sweep 9s linear infinite;
+}
+.anim-rise {
+  animation: rise 420ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.anim-blip {
+  transform: translate(-50%, -50%);
+  animation: blip 520ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.anim-ping {
+  animation: ping-soft 1.6s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+.anim-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-sweep,
+  .anim-ping,
+  .anim-shimmer {
+    animation: none;
+  }
+  .anim-rise,
+  .anim-blip {
+    animation-duration: 1ms;
+  }
 }

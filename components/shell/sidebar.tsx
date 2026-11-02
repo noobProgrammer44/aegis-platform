@@ -36,8 +36,8 @@ function NavLink({ item, active, collapsed }: { item: NavItem; active: boolean; 
       className={cx(
         "flex h-9 items-center gap-3 rounded-lg px-2.5 text-sm transition-colors",
         active
-          ? "bg-accent/12 font-medium text-text"
-          : "text-text-dim hover:bg-white/[0.04] hover:text-text",
+          ? "bg-accent/10 font-medium text-text shadow-[inset_2px_0_0_var(--accent)]"
+          : "text-text-dim hover:bg-row-hover hover:text-text",
         collapsed && "justify-center px-0",
       )}
     >
@@ -63,14 +63,14 @@ export function Sidebar({ workspaceName }: { workspaceName: string }) {
   return (
     <aside
       className={cx(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border-soft bg-surface/60 transition-[width]",
+        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-border-soft bg-canvas/50 backdrop-blur-md transition-[width]",
         collapsed ? "w-16" : "w-60",
       )}
     >
       <div className={cx("flex h-14 items-center gap-2.5 px-4", collapsed && "justify-center px-0")}>
-        <ShieldMark className="h-5 w-5 shrink-0 text-accent" />
+        <ShieldMark className="h-5 w-5 shrink-0 text-accent drop-shadow-[0_0_8px_rgba(34,211,238,0.55)]" />
         {!collapsed && (
-          <span className="font-mono text-sm font-semibold tracking-tight">aegis</span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-dim">aegis</span>
         )}
       </div>
 

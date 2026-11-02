@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cx } from "@/lib/ui/cx";
-import { SEVERITY_TONE } from "@/lib/ui/severity";
+import { SEVERITY_ACCENT, SEVERITY_TONE } from "@/lib/ui/severity";
 import type { ThreatLevel } from "@/types/aegis";
 
 /** Tall tinted tile with a big count, one per severity (dashboard "Risks detected"). */
@@ -16,7 +16,7 @@ export function SeverityTile({
   const tone = SEVERITY_TONE[level];
   const body = (
     <>
-      <span className={cx("text-xs font-medium uppercase tracking-[0.12em]", tone.text)}>
+      <span className={cx("font-mono text-[11px] font-medium uppercase tracking-[0.16em]", tone.text)}>
         {tone.label}
       </span>
       <span className="mt-6 font-mono text-4xl font-semibold tabular-nums leading-none text-text">
@@ -25,10 +25,11 @@ export function SeverityTile({
     </>
   );
   const className = cx(
-    "flex min-h-32 flex-col justify-between rounded-xl border p-4 transition-colors",
+    "anim-rise flex min-h-32 flex-col justify-between rounded-xl border p-4 transition-[filter,transform] duration-150",
     tone.bg,
     tone.border,
-    href && "hover:brightness-125",
+    count > 0 && SEVERITY_ACCENT[level].edge,
+    href && "hover:-translate-y-0.5 hover:brightness-125",
   );
   return href ? (
     <Link href={href} className={className}>

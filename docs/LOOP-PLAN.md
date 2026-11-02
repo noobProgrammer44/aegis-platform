@@ -156,3 +156,12 @@ Feature research: `docs/hostedscan-reference/README.md`.
   example.com skipped by the gate.
   Still open in item 4: tool resolver (local binary / Docker / unavailable) and
   subfinder. Still open in item 10: Scheduled tab and schedule-from-dialog.
+- 2026-11-02: merged Jay's origin/main a2b6cbe (UI redesign: radar surface map, stage
+  rail, findings-first results, deeper ink palette, cyan-to-sky accent, survey grid,
+  motion + reduced-motion). His page lives at `/quick-scan` (own header replaced by a
+  label + status-pill bar since the sidebar carries the logo). His palette is the
+  global theme; grade / closed tokens retuned to it. His design language is now in the
+  shared kit: gradient primary buttons, gradient page titles, mono label headings,
+  Chip / Tag badge styles, glowing severity edges, rising rows, glass sidebar and
+  cards, `components/ui/severity-donut.tsx` (dashboard risks panel) and
+  `components/ui/segmented.tsx` (dashboard period, New scan intensity).

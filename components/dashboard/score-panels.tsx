@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SeverityDot } from "@/components/ui/badges";
 import { Card } from "@/components/ui/card";
 import { HealthGauge } from "@/components/ui/gauge";
+import { SeverityDonut } from "@/components/ui/severity-donut";
 import { SeverityTile, StatBar } from "@/components/ui/tiles";
 import { pluralize, SCAN_TYPE_LABEL } from "@/lib/ui/format";
 import type { DashboardData } from "@/lib/services/dashboard";
@@ -77,10 +78,13 @@ export function RisksPanel({ data }: { data: DashboardData }) {
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {THREAT_LEVELS.map((level) => (
-          <SeverityTile key={level} level={level} count={data.counts[level]} href={`/risks?level=${level}`} />
-        ))}
+      <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-stretch">
+        <SeverityDonut counts={data.counts} />
+        <div className="grid w-full flex-1 grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
+          {THREAT_LEVELS.map((level) => (
+            <SeverityTile key={level} level={level} count={data.counts[level]} href={`/risks?level=${level}`} />
+          ))}
+        </div>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <StatBar label="Accepted" count={data.accepted} tone="accepted" href="/risks?accepted=1" />

@@ -7,13 +7,15 @@ export type ButtonSize = "sm" | "md";
 
 const BASE =
   "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg font-medium " +
-  "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring " +
+  "transition-[filter,transform,background-color,border-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring " +
   "disabled:pointer-events-none disabled:opacity-50";
 
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-accent-contrast hover:bg-accent-hover",
-  secondary: "border border-border-strong bg-surface-raised text-text hover:bg-white/[0.06]",
-  ghost: "text-text-dim hover:bg-white/[0.05] hover:text-text",
+  primary:
+    "bg-[linear-gradient(135deg,var(--accent),var(--accent-2))] font-semibold text-accent-contrast " +
+    "shadow-[0_8px_28px_-8px_rgba(34,211,238,0.7)] hover:brightness-110 active:scale-[0.97]",
+  secondary: "border border-border-strong bg-surface-raised text-text hover:bg-row-hover hover:border-accent/40",
+  ghost: "text-text-dim hover:bg-row-hover hover:text-text",
   danger: "border border-signal-critical/40 text-signal-critical hover:bg-signal-critical/10",
 };
 

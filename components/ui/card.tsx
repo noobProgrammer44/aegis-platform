@@ -15,10 +15,10 @@ export function Card({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cx("rounded-xl border border-border bg-surface", className)}>
+    <section className={cx("anim-rise rounded-2xl border border-border bg-surface/90 backdrop-blur-sm", className)}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 border-b border-border-soft px-5 py-3.5">
-          {title && <h2 className="text-sm font-semibold tracking-tight">{title}</h2>}
+          {title && <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-text-dim">{title}</h2>}
           {action}
         </header>
       )}
@@ -39,9 +39,11 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-[22px] font-semibold leading-tight tracking-tight">{title}</h1>
+        <h1 className="w-fit bg-[linear-gradient(100deg,var(--text)_35%,var(--accent)_80%,var(--accent-2))] bg-clip-text pb-0.5 text-[30px] font-semibold leading-none tracking-[-0.035em] text-transparent">
+          {title}
+        </h1>
         {description && (
-          <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-text-dim">{description}</p>
+          <p className="mt-2.5 max-w-prose text-[15px] leading-relaxed text-text-dim text-pretty">{description}</p>
         )}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -61,7 +63,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center rounded-xl border border-dashed border-border-strong px-6 py-14 text-center">
+    <div className="anim-rise flex flex-col items-center rounded-2xl border border-dashed border-border-strong bg-surface/40 px-6 py-14 text-center">
       {icon && <div className="mb-3 text-text-faint">{icon}</div>}
       <p className="text-sm font-medium">{title}</p>
       {description && (

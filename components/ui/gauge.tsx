@@ -48,7 +48,8 @@ export function HealthGauge({
             stroke={GRADE_COLOR_VAR[band]}
             strokeWidth={STROKE}
             strokeLinecap="butt"
-            opacity={band === grade ? 1 : 0.28}
+            opacity={band === grade ? 1 : 0.22}
+            style={band === grade ? { filter: `drop-shadow(0 0 6px ${GRADE_COLOR_VAR[band]})` } : undefined}
           />
         ))}
         <line

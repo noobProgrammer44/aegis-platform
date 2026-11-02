@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export default function AppLayout({ children }: { children: ReactNode }) {
   const workspace = getWorkspace(getDb(), currentWorkspaceId());
   return (
-    <div className="flex min-h-screen">
+    <div className="relative z-10 flex min-h-screen">
       <Sidebar workspaceName={workspace?.name ?? "Workspace"} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>

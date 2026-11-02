@@ -5,12 +5,15 @@ import { startScanAction } from "@/app/(app)/scans/actions";
 import { Chip } from "@/components/ui/badges";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/overlays";
+import { SEGMENT_FRAME, segmentClass } from "@/components/ui/segmented";
 import { INITIAL_RESULT } from "@/lib/actions/result";
 import { parseTarget } from "@/lib/domain/targets";
-import { INTENSITY_PROFILES } from "@/lib/recon/intensity";
+import { INTENSITY_PROFILES, type ScanIntensity } from "@/lib/recon/intensity";
 import { AVAILABLE_SCANNERS } from "@/lib/scans/catalog";
 import { cx } from "@/lib/ui/cx";
 import type { Target } from "@/types/aegis";
+
+const INTENSITY_ORDER: ScanIntensity[] = ["polite", "normal", "aggressive"];
 
 const isLocal = (t: Target) => {
   const parsed = parseTarget(t.target);
@@ -31,6 +34,7 @@ export function NewScanModal({
   const [result, formAction, pending] = useActionState(startScanAction, INITIAL_RESULT);
   const [types, setTypes] = useState<string[]>(["SURFACE"]);
   const [selected, setSelected] = useState<string[]>(preselected);
+  const [intensity, setIntensity] = useState<ScanIntensity>("polite");
 
   useEffect(() => {
     if (result.ok) onClose();
@@ -129,17 +133,30 @@ export function NewScanModal({
           )}
         </fieldset>
 
-        <label className="flex items-center justify-between gap-4 text-sm">
-          <span>
-            <span className="font-medium">Intensity</span>
-            <span className="block text-xs text-text-dim">How hard active scanners hit the target.</span>
-          </span>
-          <select name="intensity" defaultValue="polite" className="h-9 rounded-lg border border-border bg-control px-2.5 text-sm">
-            {Object.entries(INTENSITY_PROFILES).map(([value, profile]) => (
-              <option key={value} value={value}>{profile.label}</option>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
+          <div className="min-w-0">
+            <span id="intensity-label" className="text-sm font-medium">Intensity</span>
+            <span className="mt-1 block font-mono text-[11px] tabular-nums text-text-faint">
+              {INTENSITY_PROFILES[intensity].concurrency} parallel · {INTENSITY_PROFILES[intensity].delayMs}ms spacing · nuclei{" "}
+              {INTENSITY_PROFILES[intensity].nucleiRateLimit} req/s
+            </span>
+          </div>
+          <div role="radiogroup" aria-labelledby="intensity-label" className={SEGMENT_FRAME}>
+            {INTENSITY_ORDER.map((key) => (
+              <label key={key} className={segmentClass(intensity === key, key === "aggressive")}>
+                <input
+                  type="radio"
+                  name="intensity"
+                  value={key}
+                  checked={intensity === key}
+                  onChange={() => setIntensity(key)}
+                  className="sr-only"
+                />
+                {INTENSITY_PROFILES[key].label}
+              </label>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
 
         {result.message && !result.ok && (
           <p role="alert" className="text-sm text-signal-critical">{result.message}</p>

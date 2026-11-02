@@ -6,6 +6,7 @@ import { RecentPanels } from "@/components/dashboard/recent-panels";
 import { HealthPanel, RisksPanel } from "@/components/dashboard/score-panels";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/card";
+import { SegmentedLinks } from "@/components/ui/segmented";
 import { getDb } from "@/lib/db/client";
 import { parsePeriod, PERIODS } from "@/lib/domain/insights";
 import { loadDashboard } from "@/lib/services/dashboard";
@@ -32,8 +33,12 @@ export default async function DashboardPage({
           <>
             <Link
               href="/scans"
-              className="hidden h-9 items-center rounded-full border border-border px-3.5 text-xs text-text-dim hover:text-text md:flex"
+              className="hidden h-9 items-center gap-2 rounded-full border border-border bg-surface/70 px-3.5 text-xs text-text-dim hover:text-text md:flex"
             >
+              <span className="relative flex h-2 w-2">
+                {data.scansInProgress > 0 && <span className="anim-ping absolute inset-0 rounded-full bg-accent" />}
+                <span className={cx("relative h-2 w-2 rounded-full", data.scansInProgress > 0 ? "bg-accent" : "bg-signal-live")} />
+              </span>
               <span className={data.scansInProgress > 0 ? "text-accent" : undefined}>
                 {pluralize(data.scansInProgress, "scan")} in progress
               </span>
@@ -48,23 +53,13 @@ export default async function DashboardPage({
         }
       />
 
-      <nav aria-label="Period" className="-mt-2 flex flex-wrap gap-1">
-        {PERIODS.map((p) => (
-          <Link
-            key={p.value}
-            href={`/dashboard?period=${p.value}`}
-            aria-current={p.value === data.period ? "true" : undefined}
-            className={cx(
-              "rounded-md px-2.5 py-1 text-xs transition-colors",
-              p.value === data.period
-                ? "bg-white/[0.07] font-medium text-text"
-                : "text-text-faint hover:text-text",
-            )}
-          >
-            {p.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="-mt-2">
+        <SegmentedLinks
+          label="Period"
+          active={data.period}
+          items={PERIODS.map((p) => ({ value: p.value, label: p.label, href: `/dashboard?period=${p.value}` }))}
+        />
+      </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
         <HealthPanel data={data} />
