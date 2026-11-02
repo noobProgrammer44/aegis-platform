@@ -4,6 +4,7 @@ import { intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
 import { hasProxy, proxyList } from "@/lib/recon/proxy";
 import { detectWaf, wafFinding } from "@/lib/recon/waf";
 import type { Finding, LiveHost, Severity } from "@/types/recon";
+import { ensureNucleiTemplates } from "./nuclei-templates";
 
 /**
  * Stage 4b — Deep vulnerability detection with nuclei (ACTIVE, streaming).
@@ -63,6 +64,10 @@ export async function runNucleiStream(
   } = {},
 ): Promise<StreamStatus> {
   if (hosts.length === 0) return { status: "ok" };
+
+  // Without its template library nuclei "finishes" instantly having checked nothing.
+  const templates = await ensureNucleiTemplates(callbacks.onProgress);
+  if (!templates.ok) return { status: "unavailable", message: templates.message };
 
   // Rewrite localhost targets for the container; keep a reverse map for reporting.
   const targets: string[] = [];
