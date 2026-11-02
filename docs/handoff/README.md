@@ -44,9 +44,9 @@ streamed findings.
 - Dependencies added: `better-sqlite3`, `zod`, `vitest`, `@types/better-sqlite3`.
 - `npx tsc --noEmit` passes.
 
-**Item 1 is done** (data layer): `lib/db/repos/*` has one repository per table,
+**Items 1-2 are done** (data layer, then pure domain logic in `lib/domain/`): `lib/db/repos/*` has one repository per table,
 all workspace-scoped, plus `npm test` (vitest) with repository tests on
-`openDb(":memory:")`. Next up is item 2 (domain logic with tests). The checklist
+`openDb(":memory:")`. Next up is item 3 (server-side authorization). The checklist
 in `docs/LOOP-PLAN.md` is always the source of truth for what's next.
 
 ## Machine setup (already done on Kartik's Mac; repeat on a new machine)

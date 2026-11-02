@@ -36,7 +36,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
 - [x] 1. Tooling: vitest + test script, `better-sqlite3`, `zod`; `lib/db` schema +
       migrations + repositories (targets, scans, risks, schedules, reports, rules,
       authorizations, audit log, webhooks, api keys, settings, notifications).
-- [ ] 2. Domain logic with tests: target parsing (IPv4 / domain / URL / CIDR),
+- [x] 2. Domain logic with tests: target parsing (IPv4 / domain / URL / CIDR),
       health score (0-1000, A-F, tier floors + diminishing returns), risk lifecycle
       (new_open / still_open / closed / reopened), acceptance rule matcher,
       schedule next-run.
@@ -107,3 +107,10 @@ Feature research: `docs/hostedscan-reference/README.md`.
   updates return new objects; `lib/db/errors.ts` (`DuplicateError`), `lib/db/sql.ts`.
   `npm test` (vitest, `vitest.config.ts` with the `@/` alias): 53 repository tests on
   `openDb(":memory:")`. `better-sqlite3` added to `serverExternalPackages`.
+- 2026-11-02: item 2 done. Pure modules in `lib/domain/`: `targets.ts` (domain / URL /
+  IPv4 / host:port / CIDR up to /24, bulk paste), `network.ts` (IPv4, CIDR, local
+  ranges for auto-auth), `health-score.ts` (tier floors, 80% / 20% diminishing lifts),
+  `acceptance.ts` (AND of conditions, empty rule matches nothing, manual acceptances
+  never overridden), `risk-lifecycle.ts` (new / still open / reopened / closed, only
+  closes same-scanner risks on scanned targets), `schedule.ts` (anchored next run, UTC,
+  month-end clamping). 45 new tests, 98 total.
