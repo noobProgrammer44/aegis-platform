@@ -1,4 +1,4 @@
-import type { ScanState, ScanType } from "@/types/aegis";
+import type { Scan, ScanState, ScanType } from "@/types/aegis";
 
 /** Display helpers shared by the dashboard and list pages. */
 
@@ -24,6 +24,10 @@ export const SCAN_STATE_LABEL: Record<ScanState, string> = {
   STOPPING: "Stopping",
   STOPPED: "Stopped",
 };
+
+/** A finished scan keeps a message only when some checks were blocked (e.g. by a WAF). */
+export const isPartialScan = (scan: Pick<Scan, "state" | "progressMessage">): boolean =>
+  scan.state === "SUCCEEDED" && Boolean(scan.progressMessage);
 
 const UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [
   ["year", 365 * 86_400],

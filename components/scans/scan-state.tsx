@@ -1,5 +1,5 @@
 import { cx } from "@/lib/ui/cx";
-import { SCAN_STATE_LABEL } from "@/lib/ui/format";
+import { isPartialScan, SCAN_STATE_LABEL } from "@/lib/ui/format";
 import type { Scan, ScanState } from "@/types/aegis";
 
 const TONE: Record<ScanState, string> = {
@@ -33,8 +33,8 @@ export function ScanStateBadge({ scan }: { scan: Pick<Scan, "state" | "progress"
           )}
         </>
       )}
-      {!running && scan.state === "SUCCEEDED" && scan.progressMessage && (
-        <p className="mt-1 max-w-56 truncate text-[11px] text-caution" title={scan.progressMessage}>
+      {isPartialScan(scan) && (
+        <p className="mt-1 max-w-56 truncate text-[11px] text-caution" title={scan.progressMessage ?? undefined}>
           Partial: some checks were blocked
         </p>
       )}

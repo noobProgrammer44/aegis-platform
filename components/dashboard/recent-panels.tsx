@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Chip, SeverityDot } from "@/components/ui/badges";
 import { Card } from "@/components/ui/card";
 import { cx } from "@/lib/ui/cx";
-import { SCAN_STATE_LABEL, SCAN_TYPE_LABEL, timeAgo } from "@/lib/ui/format";
+import { isPartialScan, SCAN_STATE_LABEL, SCAN_TYPE_LABEL, timeAgo } from "@/lib/ui/format";
 import { targetName, type DashboardData } from "@/lib/services/dashboard";
 import type { ScanState } from "@/types/aegis";
 
@@ -64,9 +64,11 @@ export function RecentPanels({ data, now }: { data: DashboardData; now: Date }) 
           <li key={scan.id} className="px-5 py-3">
             <div className="flex items-center justify-between gap-3">
               <span className="truncate text-sm font-medium">{SCAN_TYPE_LABEL[scan.type]}</span>
-              <span className={cx("shrink-0 text-xs", STATE_TONE[scan.state])}>
-                {SCAN_STATE_LABEL[scan.state]}
-              </span>
+              {isPartialScan(scan) ? (
+                <span className="shrink-0 text-xs text-caution" title={scan.progressMessage ?? undefined}>Partial</span>
+              ) : (
+                <span className={cx("shrink-0 text-xs", STATE_TONE[scan.state])}>{SCAN_STATE_LABEL[scan.state]}</span>
+              )}
             </div>
             <div className="mt-0.5 flex items-center justify-between gap-3 text-xs text-text-faint">
               <span className="truncate font-mono">{scan.targets.join(", ") || "No targets"}</span>
