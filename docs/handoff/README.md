@@ -44,13 +44,10 @@ streamed findings.
 - Dependencies added: `better-sqlite3`, `zod`, `vitest`, `@types/better-sqlite3`.
 - `npx tsc --noEmit` passes.
 
-**Item 1 is half done.** Still to write for item 1:
-- `lib/db/repos/*.ts`: one repository per table (targets, scans, scan results,
-  risks, rules, schedules, reports, authorizations, audit, discovered domains,
-  webhooks, api keys, settings, notifications, snapshots).
-- A `test` script in `package.json` (`vitest run`) plus repository tests against
-  `openDb(":memory:")`.
-- Add `better-sqlite3` to `serverExternalPackages` in `next.config.ts`.
+**Item 1 is done** (data layer): `lib/db/repos/*` has one repository per table,
+all workspace-scoped, plus `npm test` (vitest) with repository tests on
+`openDb(":memory:")`. Next up is item 2 (domain logic with tests). The checklist
+in `docs/LOOP-PLAN.md` is always the source of truth for what's next.
 
 ## Machine setup (already done on Kartik's Mac; repeat on a new machine)
 

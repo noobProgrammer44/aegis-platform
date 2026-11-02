@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // simple-wappalyzer ships a ~3MB ruleset and CJS deps; require it at runtime
-  // instead of bundling it into the route.
-  serverExternalPackages: ["simple-wappalyzer"],
+  // Required at runtime instead of bundled: simple-wappalyzer ships a ~3MB ruleset and
+  // CJS deps; better-sqlite3 is a native addon.
+  serverExternalPackages: ["simple-wappalyzer", "better-sqlite3"],
 };
 
 export default nextConfig;

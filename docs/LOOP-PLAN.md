@@ -33,7 +33,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
 ## Checklist
 
 ### Foundation
-- [ ] 1. Tooling: vitest + test script, `better-sqlite3`, `zod`; `lib/db` schema +
+- [x] 1. Tooling: vitest + test script, `better-sqlite3`, `zod`; `lib/db` schema +
       migrations + repositories (targets, scans, risks, schedules, reports, rules,
       authorizations, audit log, webhooks, api keys, settings, notifications).
 - [ ] 2. Domain logic with tests: target parsing (IPv4 / domain / URL / CIDR),
@@ -102,3 +102,8 @@ Feature research: `docs/hostedscan-reference/README.md`.
   (better-sqlite3, zod, vitest). Remaining for item 1: `lib/db/repos/*`, `test`
   script + repo tests, `better-sqlite3` in `serverExternalPackages`. Scanners
   installed on Kartik's Mac (see `docs/handoff/session-context.md`).
+- 2026-11-02: item 1 done (continued in a new session after the handoff).
+  `lib/db/repos/*`: one module per table, every read and write workspace-scoped,
+  updates return new objects; `lib/db/errors.ts` (`DuplicateError`), `lib/db/sql.ts`.
+  `npm test` (vitest, `vitest.config.ts` with the `@/` alias): 53 repository tests on
+  `openDb(":memory:")`. `better-sqlite3` added to `serverExternalPackages`.
