@@ -1,4 +1,4 @@
-import type { TargetKind } from "@/types/aegis";
+import type { Target, TargetKind, TargetsFilter } from "@/types/aegis";
 import {
   formatCidr,
   formatIPv4,
@@ -163,4 +163,10 @@ export function parseTargetList(text: string): ParsedTargetList {
     result.ok ? [] : [{ input, error: result.error }],
   );
   return { targets, errors };
+}
+
+/** Whether a schedule's target filter picks this target (an empty filter picks all). */
+export function filterCoversTarget(filter: TargetsFilter, target: Pick<Target, "id" | "tags">): boolean {
+  if (filter.targetIds.length === 0 && filter.tags.length === 0) return true;
+  return filter.targetIds.includes(target.id) || target.tags.some((tag) => filter.tags.includes(tag));
 }

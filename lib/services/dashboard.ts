@@ -6,6 +6,7 @@ import { listScans } from "@/lib/db/repos/scans";
 import { listScheduledScans } from "@/lib/db/repos/scheduled-scans";
 import { listTargets } from "@/lib/db/repos/targets";
 import { countScoredRisks, healthFromRisks, type SeverityCounts } from "@/lib/domain/health-score";
+import { filterCoversTarget } from "@/lib/domain/targets";
 import {
   healthTrend,
   mostCriticalRisk,
@@ -45,6 +46,10 @@ export interface DashboardData {
   mostCritical: { risk: Risk; ageDays: number } | null;
   mostFrequent: IssueGroup | null;
   targetsById: ReadonlyMap<string, Target>;
+  /** The target the dashboard is narrowed to, or null for the whole workspace. */
+  target: Target | null;
+  /** Every target, for the filter picker. */
+  targets: Target[];
 }
 
 const RECENT_LIMIT = 5;
@@ -52,13 +57,21 @@ const RECENT_LIMIT = 5;
 const since = (start: string | null) => (iso: string | null) =>
   iso !== null && (start === null || iso >= start);
 
-export function loadDashboard(db: DB, workspaceId: string, period: Period, now: Date): DashboardData {
+export function loadDashboard(
+  db: DB,
+  workspaceId: string,
+  period: Period,
+  now: Date,
+  targetId: string | null = null,
+): DashboardData {
   const start = periodStart(period, now);
   const inPeriod = since(start);
-  const risks = listRisks(db, workspaceId);
   const targets = listTargets(db, workspaceId);
-  const scans = listScans(db, workspaceId, { limit: 200 });
-  const discovered = listDiscoveredDomains(db, workspaceId, { unpromotedOnly: true });
+  const target = targets.find((t) => t.id === targetId) ?? null;
+  const risks = listRisks(db, workspaceId, target ? { targetIds: [target.id] } : {});
+  const scans = listScans(db, workspaceId, { limit: 200 }).filter((s) => !target || s.targetIds.includes(target.id));
+  const discovered = listDiscoveredDomains(db, workspaceId, { unpromotedOnly: true, viaTargetId: target?.id });
+  const schedules = listScheduledScans(db, workspaceId).filter((s) => !target || filterCoversTarget(s.targetsFilter, target));
   const health = healthFromRisks(risks);
   const counts = countScoredRisks(risks);
   const openRisks = risks.filter((r) => r.status === "OPEN");
@@ -71,10 +84,10 @@ export function loadDashboard(db: DB, workspaceId: string, period: Period, now: 
     accepted: openRisks.filter((r) => r.isAccepted).length,
     closedInPeriod: risks.filter((r) => r.status === "CLOSED" && inPeriod(r.closedAt)).length,
     scansInProgress: scans.filter((s) => ["QUEUED", "RUNNING", "STOPPING"].includes(s.state)).length,
-    scheduledCount: listScheduledScans(db, workspaceId).filter((s) => s.enabled && s.nextRun).length,
+    scheduledCount: schedules.filter((s) => s.enabled && s.nextRun).length,
     trend: healthTrend(
       health.score,
-      listHealthSnapshots(db, workspaceId, { targetId: null }),
+      listHealthSnapshots(db, workspaceId, { targetId: target?.id ?? null }),
       now,
     ),
     topIssues: topIssues(risks),
@@ -85,10 +98,12 @@ export function loadDashboard(db: DB, workspaceId: string, period: Period, now: 
       .slice(0, RECENT_LIMIT),
     discovered: discovered.slice(0, RECENT_LIMIT),
     discoveredTotal: discovered.length,
-    mostVulnerable: mostVulnerableTarget(targets),
+    mostVulnerable: mostVulnerableTarget(target ? [target] : targets),
     mostCritical: mostCriticalRisk(risks, now),
     mostFrequent: mostFrequentIssue(risks),
     targetsById: new Map(targets.map((t) => [t.id, t] as const)),
+    target,
+    targets,
   };
 }
 

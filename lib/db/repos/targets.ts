@@ -8,6 +8,7 @@ import type {
 } from "@/types/aegis";
 import { newId, nowIso, parseJson, toJson, type DB } from "../client";
 import { insertOrDuplicate } from "../errors";
+import { filterCoversTarget } from "@/lib/domain/targets";
 
 interface TargetRow {
   id: string;
@@ -128,11 +129,7 @@ export function listTargetsMatching(
   workspaceId: string,
   filter: TargetsFilter,
 ): Target[] {
-  const all = listTargets(db, workspaceId);
-  if (filter.targetIds.length === 0 && filter.tags.length === 0) return all;
-  const ids = new Set(filter.targetIds);
-  const tags = new Set(filter.tags);
-  return all.filter((t) => ids.has(t.id) || t.tags.some((tag) => tags.has(tag)));
+  return listTargets(db, workspaceId).filter((t) => filterCoversTarget(filter, t));
 }
 
 export function updateTarget(

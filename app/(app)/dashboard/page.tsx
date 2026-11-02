@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { InsightCards } from "@/components/dashboard/insight-cards";
 import { RecentPanels } from "@/components/dashboard/recent-panels";
+import { TargetFilter } from "@/components/dashboard/target-filter";
 import { HealthPanel, RisksPanel } from "@/components/dashboard/score-panels";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/card";
@@ -19,11 +20,12 @@ export const metadata: Metadata = { title: "Dashboard" };
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; target?: string }>;
 }) {
-  const { period: rawPeriod } = await searchParams;
+  const { period: rawPeriod, target: rawTarget } = await searchParams;
   const now = new Date();
-  const data = loadDashboard(getDb(), currentWorkspaceId(), parsePeriod(rawPeriod), now);
+  const data = loadDashboard(getDb(), currentWorkspaceId(), parsePeriod(rawPeriod), now, rawTarget ?? null);
+  const targetQuery = data.target ? `&target=${encodeURIComponent(data.target.id)}` : "";
 
   return (
     <div className="space-y-5 px-8 py-8">
@@ -45,7 +47,7 @@ export default async function DashboardPage({
               <span className="mx-2 text-text-faint">|</span>
               {data.scheduledCount} scheduled
             </Link>
-            <ButtonLink href="/scans?new=1" variant="primary">
+            <ButtonLink href={data.target ? `/scans/new?target=${encodeURIComponent(data.target.id)}` : "/scans/new"} variant="primary">
               <Plus className="h-4 w-4" />
               New scan
             </ButtonLink>
@@ -53,12 +55,18 @@ export default async function DashboardPage({
         }
       />
 
-      <div className="-mt-2">
+      <div className="-mt-2 flex flex-wrap items-center gap-3">
         <SegmentedLinks
           label="Period"
           active={data.period}
-          items={PERIODS.map((p) => ({ value: p.value, label: p.label, href: `/dashboard?period=${p.value}` }))}
+          items={PERIODS.map((p) => ({ value: p.value, label: p.label, href: `/dashboard?period=${p.value}${targetQuery}` }))}
         />
+        <TargetFilter targets={data.targets} selected={data.target?.id ?? null} period={data.period} />
+        {data.target && (
+          <Link href={`/risks?target=${encodeURIComponent(data.target.id)}`} className="text-xs text-accent hover:text-accent-hover">
+            View risks for this target
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
