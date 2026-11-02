@@ -1,6 +1,12 @@
 import net from "node:net";
 import pLimit from "p-limit";
 import { delay, intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
+import {
+  hasProxy,
+  nextProxy,
+  proxiedConnect,
+  proxyList,
+} from "@/lib/recon/proxy";
 import type { Finding, LiveHost, OpenPort } from "@/types/recon";
 
 /**
@@ -63,6 +69,11 @@ export async function scanPorts(
   }
 
   const profile = intensityProfile(intensityValue);
+  if (hasProxy()) {
+    console.info(
+      `[proxy] port scan routing through ${proxyList().length} proxy(ies)`,
+    );
+  }
 
   // One scan per unique hostname across all live hosts.
   const hostnames = new Set<string>();
@@ -83,7 +94,11 @@ export async function scanPorts(
       tasks.push(
         limit(async () => {
           if (profile.delayMs) await delay(profile.delayMs);
-          if (await checkPort(hostname, port, PORT_TIMEOUT_MS)) {
+          const proxy = hasProxy() ? nextProxy() : null;
+          const open = proxy
+            ? await proxiedConnect(hostname, port, proxy, PORT_TIMEOUT_MS)
+            : await checkPort(hostname, port, PORT_TIMEOUT_MS);
+          if (open) {
             openPorts.push({
               host: hostname,
               port,

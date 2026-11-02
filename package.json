@@ -20,6 +20,8 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "simple-wappalyzer": "^2.0.3",
+    "socks": "^2.8.10",
+    "undici": "^8.12.3",
     "zod": "^4.6.7"
   },
   "devDependencies": {
