@@ -9,22 +9,26 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "cheerio": "^1.2.0",
     "next": "15.5.28",
     "p-limit": "^7.3.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "simple-wappalyzer": "^2.0.3"
+    "simple-wappalyzer": "^2.0.3",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

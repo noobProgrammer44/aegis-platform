@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# aegis local state
+/data/
+/.tools-log/
+# third-party screenshots used only as local design reference (not ours to redistribute)
+/docs/hostedscan-reference/screens/
