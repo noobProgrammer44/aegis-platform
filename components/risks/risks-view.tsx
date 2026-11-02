@@ -6,14 +6,15 @@ import { buttonClass } from "@/components/ui/button";
 import { EmptyState, PageHeader } from "@/components/ui/card";
 import { SeverityDonut } from "@/components/ui/severity-donut";
 import { countScoredRisks } from "@/lib/domain/health-score";
-import { filterRisks, groupRisks, type RiskFilters, type RiskGrouping } from "@/lib/domain/risk-table";
+import { filterRisks, groupRisks, sortRisks, type RiskFilters, type RiskGrouping } from "@/lib/domain/risk-table";
 import { cx } from "@/lib/ui/cx";
 import type { AcceptanceRule, Risk, ScanType, Target } from "@/types/aegis";
-import { RiskDrawer } from "./risk-drawer";
 import { RiskGroups, RiskToolbar } from "./risk-list";
 import { RulesPanel } from "./rules-panel";
 
 type Tab = "risks" | "rules";
+
+const PAGE_SIZE = 30;
 
 function exportHref(filters: RiskFilters): string {
   const params = new URLSearchParams();
@@ -43,18 +44,36 @@ export function RisksView({
   const [tab, setTab] = useState<Tab>("risks");
   const [filters, setFilters] = useState<RiskFilters>(initialFilters);
   const [grouping, setGrouping] = useState<RiskGrouping>("none");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const close = useCallback(() => setSelectedId(null), []);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   const targetMap = useMemo(() => new Map(targets.map((t) => [t.id, t] as const)), [targets]);
   const tags = useMemo(() => [...new Set(targets.flatMap((t) => t.tags))].sort(), [targets]);
   const filtered = useMemo(() => filterRisks(risks, targetMap, filters), [risks, targetMap, filters]);
-  const groups = useMemo(() => groupRisks(filtered, grouping, targetMap), [filtered, grouping, targetMap]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount - 1);
+  const groups = useMemo(
+    () => groupRisks(sortRisks(filtered).slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE), grouping, targetMap),
+    [filtered, grouping, targetMap, current],
+  );
+  const toggle = useCallback((id: string) => setExpandedId((open) => (open === id ? null : id)), []);
+  const acceptFromRow = useCallback((id: string) => {
+    setExpandedId(id);
+    // Focus the reason box once the expanded row has rendered.
+    setTimeout(() => {
+      const input = document.getElementById(`reason-${id}`);
+      input?.scrollIntoView({ behavior: "smooth", block: "center" });
+      input?.focus();
+    }, 50);
+  }, []);
+  const changeFilters = useCallback((next: RiskFilters) => {
+    setFilters(next);
+    setPage(0);
+  }, []);
   const targetName = useCallback((id: string) => {
     const t = targetMap.get(id);
     return t ? t.label || t.target : "Deleted target";
   }, [targetMap]);
-  const selected = risks.find((r) => r.id === selectedId) ?? null;
   const scored = countScoredRisks(risks);
 
   return (
@@ -96,7 +115,7 @@ export function RisksView({
           <div className="min-w-0 space-y-4">
             <RiskToolbar
               filters={filters}
-              onChange={setFilters}
+              onChange={changeFilters}
               grouping={grouping}
               onGrouping={setGrouping}
               targets={targets}
@@ -108,7 +127,18 @@ export function RisksView({
                 No risks match these filters.
               </p>
             ) : (
-              <RiskGroups groups={groups} grouping={grouping} targetName={targetName} onOpen={setSelectedId} />
+              <>
+                <RiskGroups groups={groups} grouping={grouping} targetName={targetName} expandedId={expandedId} onToggle={toggle} onAccept={acceptFromRow} />
+                {pageCount > 1 && (
+                  <div className="flex items-center justify-end gap-3 text-xs text-text-dim">
+                    <span>
+                      {current * PAGE_SIZE + 1}–{Math.min((current + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+                    </span>
+                    <button type="button" className="rounded p-1.5 hover:bg-row-hover disabled:opacity-30" disabled={current === 0} onClick={() => setPage(current - 1)} aria-label="Previous page">‹</button>
+                    <button type="button" className="rounded p-1.5 hover:bg-row-hover disabled:opacity-30" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)} aria-label="Next page">›</button>
+                  </div>
+                )}
+              </>
             )}
           </div>
           <aside className="hidden xl:block">
@@ -120,7 +150,6 @@ export function RisksView({
         </div>
       )}
 
-      <RiskDrawer key={selectedId ?? "none"} risk={selected} targetName={selected ? targetName(selected.targetId) : ""} onClose={close} />
     </div>
   );
 }

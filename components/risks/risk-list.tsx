@@ -1,14 +1,18 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { Chip, SeverityBadge, SeverityDot } from "@/components/ui/badges";
+import { Button } from "@/components/ui/button";
 import { SEGMENT_FRAME, segmentClass } from "@/components/ui/segmented";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import type { RiskFilters, RiskGroup, RiskGrouping, StatusFilter } from "@/lib/domain/risk-table";
 import { cx } from "@/lib/ui/cx";
 import { SCAN_TYPE_LABEL, timeAgo } from "@/lib/ui/format";
-import { SEVERITY_ACCENT } from "@/lib/ui/severity";
-import { THREAT_LEVELS, type ScanType, type Target, type ThreatLevel } from "@/types/aegis";
+import { readEvidence } from "@/lib/domain/evidence";
+import { THREAT_LEVELS, type Risk, type ScanType, type Target, type ThreatLevel } from "@/types/aegis";
+import { RiskDetail } from "./risk-detail";
+import { StatusPill } from "./status-pill";
+import { ThreatBars } from "./threat-bars";
 
 const SELECT =
   "h-9 rounded-lg border border-border bg-control px-2.5 text-sm text-text focus:border-accent/60 focus:outline-none";
@@ -95,16 +99,79 @@ export function RiskToolbar({
   );
 }
 
+function RiskRow({
+  risk,
+  targetName,
+  showTarget,
+  expanded,
+  onToggle,
+  onAccept,
+}: {
+  risk: Risk;
+  targetName: string;
+  showTarget: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onAccept: () => void;
+}) {
+  const d = risk.definition;
+  const ev = readEvidence(d.additionalInfo);
+  return (
+    <>
+      <TR className={cx("cursor-pointer", expanded && "bg-row-hover")} onClick={onToggle}>
+        <TD className="w-10">
+          <button type="button" aria-expanded={expanded} aria-label={expanded ? "Collapse risk" : "Expand risk"} onClick={(e) => { e.stopPropagation(); onToggle(); }} className="rounded p-1 text-text-faint hover:text-text">
+            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+        </TD>
+        <TD className="w-16"><ThreatBars level={d.threatLevel} /></TD>
+        <TD>
+          <span className="block text-xs text-text-faint">{SCAN_TYPE_LABEL[d.scanType]}</span>
+          <span className={cx("block font-medium", risk.status === "CLOSED" && "text-text-faint line-through")}>{d.title}</span>
+          <span className="mt-1 flex flex-wrap items-center gap-1.5">
+            {ev.owasp && <Chip tone="accent">OWASP Top 10</Chip>}
+            {d.cvss && <span className="text-[11px] text-text-faint">CVSS {d.cvss}</span>}
+            {ev.confidence && <span className="text-[11px] text-text-faint">Confidence {ev.confidence}</span>}
+          </span>
+        </TD>
+        {showTarget && <TD className="max-w-56 truncate text-text-dim">{targetName}</TD>}
+        <TD className="whitespace-nowrap text-xs text-text-dim">
+          <span className="block"><span className="text-text-faint">First:</span> {timeAgo(risk.firstDetectedAt)}</span>
+          <span className="block"><span className="text-text-faint">Last:</span> {timeAgo(risk.lastDetectedAt)}</span>
+        </TD>
+        <TD><StatusPill risk={risk} /></TD>
+        <TD className="text-right">
+          {risk.status === "OPEN" && !risk.isAccepted && (
+            <Button size="sm" onClick={(e) => { e.stopPropagation(); onAccept(); }}>Accept Risk</Button>
+          )}
+        </TD>
+      </TR>
+      {expanded && (
+        <tr className="bg-surface-raised/40">
+          {/* max-w-0 keeps long evidence from widening the table; the content wraps instead. */}
+          <td colSpan={showTarget ? 7 : 6} className="max-w-0 border-b border-border-soft p-0">
+            <RiskDetail risk={risk} targetName={targetName} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 export function RiskGroups({
   groups,
   grouping,
   targetName,
-  onOpen,
+  expandedId,
+  onToggle,
+  onAccept,
 }: {
   groups: RiskGroup[];
   grouping: RiskGrouping;
   targetName: (id: string) => string;
-  onOpen: (id: string) => void;
+  expandedId: string | null;
+  onToggle: (id: string) => void;
+  onAccept: (id: string) => void;
 }) {
   return (
     <div className="space-y-5">
@@ -120,37 +187,26 @@ export function RiskGroups({
           <Table>
             <THead>
               <tr>
-                <TH>Severity</TH>
-                <TH>Risk</TH>
+                <TH className="w-10"><span className="sr-only">Expand</span></TH>
+                <TH>Threat</TH>
+                <TH>Vulnerability</TH>
                 {grouping !== "target" && <TH>Target</TH>}
-                <TH>Scanner</TH>
-                <TH>Last detected</TH>
+                <TH>Detected</TH>
+                <TH>Status</TH>
+                <TH><span className="sr-only">Actions</span></TH>
               </tr>
             </THead>
             <TBody>
               {group.risks.map((risk) => (
-                <TR
+                <RiskRow
                   key={risk.id}
-                  className={cx("cursor-pointer", risk.status === "OPEN" && !risk.isAccepted && SEVERITY_ACCENT[risk.definition.threatLevel].row)}
-                  onClick={() => onOpen(risk.id)}
-                >
-                  <TD><SeverityBadge level={risk.definition.threatLevel} /></TD>
-                  <TD>
-                    <button type="button" className="text-left font-medium hover:text-accent" onClick={() => onOpen(risk.id)}>
-                      <span className={cx(risk.status === "CLOSED" && "text-text-faint line-through")}>{risk.definition.title}</span>
-                    </button>
-                    <span className="mt-1 flex flex-wrap gap-1">
-                      {risk.isAccepted && <Chip>Accepted</Chip>}
-                      {risk.status === "CLOSED" && <Chip>Closed</Chip>}
-                      {typeof risk.definition.additionalInfo.host === "string" && (
-                        <span className="font-mono text-[11px] text-text-faint">{risk.definition.additionalInfo.host}</span>
-                      )}
-                    </span>
-                  </TD>
-                  {grouping !== "target" && <TD className="text-text-dim">{targetName(risk.targetId)}</TD>}
-                  <TD className="whitespace-nowrap text-text-dim">{SCAN_TYPE_LABEL[risk.definition.scanType]}</TD>
-                  <TD className="whitespace-nowrap text-text-dim">{timeAgo(risk.lastDetectedAt)}</TD>
-                </TR>
+                  risk={risk}
+                  targetName={targetName(risk.targetId)}
+                  showTarget={grouping !== "target"}
+                  expanded={expandedId === risk.id}
+                  onToggle={() => onToggle(risk.id)}
+                  onAccept={() => onAccept(risk.id)}
+                />
               ))}
             </TBody>
           </Table>

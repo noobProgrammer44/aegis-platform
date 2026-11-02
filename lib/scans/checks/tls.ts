@@ -1,5 +1,6 @@
 import { isIP } from "node:net";
 import tls, { type ConnectionOptions, type PeerCertificate } from "node:tls";
+import { OWASP } from "@/lib/domain/owasp";
 import type { Finding } from "@/types/recon";
 
 /**
@@ -102,7 +103,8 @@ const SELF_SIGNED = new Set(["DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN
 export function evaluateTls(probe: TlsProbe, now: Date): Finding[] {
   if (!probe.reachable || !probe.cert) return [];
   const where = `${probe.host}:${probe.port}`;
-  const make = (severity: Finding["severity"], title: string, description: string, recommendation: string): Finding => ({
+  const cert = probe.cert;
+  const make = (severity: Finding["severity"], title: string, description: string, recommendation: string, cweId: string): Finding => ({
     host: where,
     port: probe.port,
     title,
@@ -110,31 +112,40 @@ export function evaluateTls(probe: TlsProbe, now: Date): Finding[] {
     description,
     recommendation,
     category: "tls",
+    details: {
+      cweId,
+      owasp: OWASP.cryptographicFailures,
+      instances: [{
+        uri: `https://${where}`,
+        evidence: `subject ${cert.subject || "(none)"}; issuer ${cert.issuer || "(none)"}; valid ${cert.validFrom.slice(0, 10)} to ${cert.validTo.slice(0, 10)}${cert.bits ? `; ${cert.bits}-bit key` : ""}`,
+        otherInfo: probe.protocol ? `negotiated ${probe.protocol}` : undefined,
+      }],
+    },
   });
   const out: Finding[] = [];
   const daysLeft = Math.floor((Date.parse(probe.cert.validTo) - now.getTime()) / DAY_MS);
   if (daysLeft < 0) {
-    out.push(make("HIGH", "TLS certificate has expired", `The certificate on ${where} expired on ${probe.cert.validTo.slice(0, 10)}. Browsers show a full-page warning.`, "Renew the certificate and set up automatic renewal (e.g. Let's Encrypt)."));
+    out.push(make("HIGH", "TLS certificate has expired", `The certificate on ${where} expired on ${probe.cert.validTo.slice(0, 10)}. Browsers show a full-page warning.`, "Renew the certificate and set up automatic renewal (e.g. Let's Encrypt).", "298"));
   } else if (daysLeft <= 14) {
-    out.push(make("MEDIUM", "TLS certificate expires within 14 days", `The certificate on ${where} expires on ${probe.cert.validTo.slice(0, 10)}.`, "Renew it now and check that automatic renewal works."));
+    out.push(make("MEDIUM", "TLS certificate expires within 14 days", `The certificate on ${where} expires on ${probe.cert.validTo.slice(0, 10)}.`, "Renew it now and check that automatic renewal works.", "298"));
   } else if (daysLeft <= 30) {
-    out.push(make("LOW", "TLS certificate expires within 30 days", `The certificate on ${where} expires on ${probe.cert.validTo.slice(0, 10)}.`, "Make sure renewal is scheduled."));
+    out.push(make("LOW", "TLS certificate expires within 30 days", `The certificate on ${where} expires on ${probe.cert.validTo.slice(0, 10)}.`, "Make sure renewal is scheduled.", "298"));
   }
   if (probe.trusted === false && probe.trustError !== "CERT_HAS_EXPIRED") {
     out.push(
       SELF_SIGNED.has(probe.trustError ?? "")
-        ? make("MEDIUM", "Self-signed TLS certificate", `${where} presents a self-signed certificate, so clients can't verify they're talking to the real server.`, "Use a certificate from a public CA.")
-        : make("MEDIUM", "TLS certificate is not trusted", `The certificate chain on ${where} doesn't verify (${probe.trustError}). This is often a missing intermediate certificate.`, "Serve the full certificate chain from a public CA."),
+        ? make("MEDIUM", "Self-signed TLS certificate", `${where} presents a self-signed certificate, so clients can't verify they're talking to the real server.`, "Use a certificate from a public CA.", "295")
+        : make("MEDIUM", "TLS certificate is not trusted", `The certificate chain on ${where} doesn't verify (${probe.trustError}). This is often a missing intermediate certificate.`, "Serve the full certificate chain from a public CA.", "295"),
     );
   }
   if (probe.hostnameMatches === false) {
-    out.push(make("MEDIUM", "TLS certificate doesn't match the hostname", `The certificate on ${where} is for ${probe.cert.subject || probe.cert.altNames.slice(0, 3).join(", ")}, not ${probe.host}.`, "Issue a certificate that covers this hostname."));
+    out.push(make("MEDIUM", "TLS certificate doesn't match the hostname", `The certificate on ${where} is for ${probe.cert.subject || probe.cert.altNames.slice(0, 3).join(", ")}, not ${probe.host}.`, "Issue a certificate that covers this hostname.", "297"));
   }
   if (probe.legacyAccepted) {
-    out.push(make("MEDIUM", "Legacy TLS 1.0 / 1.1 enabled", `${where} still accepts TLS 1.0 or 1.1, which are deprecated and have known weaknesses.`, "Allow only TLS 1.2 and 1.3."));
+    out.push(make("MEDIUM", "Legacy TLS 1.0 / 1.1 enabled", `${where} still accepts TLS 1.0 or 1.1, which are deprecated and have known weaknesses.`, "Allow only TLS 1.2 and 1.3.", "327"));
   }
   if (probe.cert.bits !== undefined && probe.cert.bits < 2048) {
-    out.push(make("MEDIUM", "Weak TLS key", `The certificate on ${where} uses a ${probe.cert.bits}-bit RSA key.`, "Reissue the certificate with a 2048-bit (or larger) RSA key or an EC key."));
+    out.push(make("MEDIUM", "Weak TLS key", `The certificate on ${where} uses a ${probe.cert.bits}-bit RSA key.`, "Reissue the certificate with a 2048-bit (or larger) RSA key or an EC key.", "326"));
   }
   return out;
 }

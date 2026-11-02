@@ -3,7 +3,7 @@ import { evaluateEmailSecurity, lookupEmailDns } from "@/lib/scans/checks/email"
 import { evaluateJsExposure, findSecrets, firstPartyScripts, maskSecret, sourceMapRef } from "@/lib/scans/checks/js-secrets";
 import { checkCname, evaluateTakeover, hostedService } from "@/lib/scans/checks/takeover";
 import { evaluateTls, type TlsProbe } from "@/lib/scans/checks/tls";
-import { parseZapReport } from "@/lib/scans/checks/zap";
+import { parseZapReport, zapPlan } from "@/lib/scans/checks/zap";
 import { forDocker } from "@/lib/scans/tools";
 
 // Fake credentials are assembled at runtime so no secret-shaped literal lives in the repo.
@@ -158,32 +158,113 @@ describe("JS secrets and source maps", () => {
 });
 
 describe("ZAP report parsing", () => {
-  it("maps risk codes, skips informational alerts and strips HTML", () => {
-    const report = {
-      site: [
-        {
-          "@host": "host.docker.internal",
-          alerts: [
-            { name: "Content Security Policy (CSP) Header Not Set", riskcode: "2", desc: "<p>CSP is missing.</p>", solution: "<p>Set it.</p>", reference: "<p>https://developer.mozilla.org/csp</p>", cweid: "693", instances: [{ uri: "http://host.docker.internal:3100/" }] },
-            { name: "Modern Web Application", riskcode: "0", desc: "info" },
-            { name: "Cookie No HttpOnly Flag", riskcode: "1", desc: "<p>Cookie.</p>", solution: "", instances: [] },
-          ],
-        },
-      ],
-    };
-    const findings = parseZapReport(report, "localhost:3100");
-    expect(findings.map((f) => [f.title, f.severity, f.host])).toEqual([
-      ["Content Security Policy (CSP) Header Not Set", "MEDIUM", "localhost:3100"],
-      ["Cookie No HttpOnly Flag", "LOW", "localhost:3100"],
-    ]);
-    expect(findings[0].description).toBe("CSP is missing. Seen at http://host.docker.internal:3100/. CWE-693.");
-    expect(findings[0].recommendation).toBe("Set it. See https://developer.mozilla.org/csp");
+  const report = {
+    site: [
+      {
+        alerts: [
+          {
+            name: "Missing Anti-clickjacking Header",
+            pluginid: "10020",
+            riskcode: "2",
+            confidence: "2",
+            desc: "<p>The response does not protect against ClickJacking.</p>",
+            solution: "<p>Set X-Frame-Options.</p>",
+            reference: "<p>https://developer.mozilla.org/x-frame-options</p><p>https://owasp.org/clickjacking</p>",
+            cweid: "1021",
+            wascid: "15",
+            tags: [
+              { tag: "OWASP_2021_A05", link: "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/" },
+              { tag: "CWE-1021", link: "https://cwe.mitre.org/data/definitions/1021.html" },
+            ],
+            instances: [
+              {
+                uri: "http://host.docker.internal:3100/",
+                method: "GET",
+                param: "x-frame-options",
+                "request-header": "GET http://host.docker.internal:3100/ HTTP/1.1\r\nhost: host.docker.internal:3100",
+                "response-header": "HTTP/1.1 200 OK\r\nContent-Type: text/html",
+                "response-body": "x".repeat(5000),
+              },
+              { method: "GET" },
+            ],
+          },
+          { name: "Modern Web Application", riskcode: "0", desc: "info" },
+        ],
+      },
+    ],
+  };
+
+  it("keeps ZAP's classification, references and instances", () => {
+    const [f] = parseZapReport(report, "localhost:3100", "host.docker.internal:3100");
+    expect(f).toMatchObject({
+      title: "Missing Anti-clickjacking Header",
+      severity: "MEDIUM",
+      host: "localhost:3100",
+      description: "The response does not protect against ClickJacking.",
+      recommendation: "Set X-Frame-Options.",
+      references: ["https://developer.mozilla.org/x-frame-options", "https://owasp.org/clickjacking"],
+      details: {
+        pluginId: "10020",
+        cweId: "1021",
+        wascId: "15",
+        confidence: "Medium",
+        owasp: { code: "A05:2021", name: "Security Misconfiguration" },
+      },
+    });
+    const instances = (f.details as { instances: { uri: string; requestHeader?: string; responseBody?: string }[] }).instances;
+    expect(instances).toHaveLength(1);
+    expect(instances[0].uri).toBe("http://localhost:3100/");
+    expect(instances[0].requestHeader).toContain("GET http://localhost:3100/");
+    expect(instances[0].responseBody).toMatch(/more characters\)$/);
+  });
+
+  it("skips informational alerts and tolerates junk", () => {
+    expect(parseZapReport(report, "x")).toHaveLength(1);
     expect(parseZapReport({ site: "nope" }, "x")).toEqual([]);
     expect(parseZapReport(null, "x")).toEqual([]);
+  });
+
+  it("builds an automation plan with the URL safely quoted", () => {
+    const plan = zapPlan('http://host.docker.internal:3100/"evil', "baseline");
+    expect(plan).toContain('- "http://host.docker.internal:3100/\\"evil"');
+    expect(plan).toContain("template: traditional-json-plus");
+    expect(plan).not.toContain("activeScan");
+    expect(zapPlan("https://a.test/", "full")).toContain("type: activeScan");
   });
 
   it("points containers at the host for local targets only", () => {
     expect(forDocker("http://localhost:3100/")).toBe("http://host.docker.internal:3100/");
     expect(forDocker("https://app.example.com/")).toBe("https://app.example.com/");
+  });
+});
+
+describe("stored evidence", () => {
+  it("reads instances and classification back defensively", async () => {
+    const { readEvidence } = await import("@/lib/domain/evidence");
+    expect(
+      readEvidence({
+        cweId: "798",
+        owasp: { code: "A07:2021", name: "Identification and Authentication Failures", url: "https://owasp.org/x" },
+        instances: [{ uri: "https://a.test/main.js", evidence: "AKIA…0000" }, { nope: true }, null],
+      }),
+    ).toEqual({
+      cweId: "798",
+      wascId: undefined,
+      owasp: { code: "A07:2021", name: "Identification and Authentication Failures", url: "https://owasp.org/x" },
+      confidence: undefined,
+      pluginId: undefined,
+      instances: [expect.objectContaining({ uri: "https://a.test/main.js", evidence: "AKIA…0000" })],
+    });
+    expect(readEvidence({ owasp: { code: "x" }, instances: "nope" })).toMatchObject({ owasp: undefined, instances: undefined });
+  });
+
+  it("attaches CWE, OWASP and instances to TLS and JS findings", () => {
+    const tlsFinding = evaluateTls(
+      { host: "a.test", port: 443, reachable: true, trusted: true, hostnameMatches: true, legacyAccepted: true, cert: { subject: "a.test", issuer: "CA", validFrom: "2026-01-01T00:00:00.000Z", validTo: "2027-01-01T00:00:00.000Z", altNames: [] } },
+      new Date("2026-11-03T00:00:00.000Z"),
+    )[0];
+    expect(tlsFinding.details).toMatchObject({ cweId: "327", owasp: { code: "A02:2021" }, instances: [{ uri: "https://a.test:443" }] });
+    const js = evaluateJsExposure("a.test", [], ["https://a.test/main.js.map"])[0];
+    expect(js.details).toMatchObject({ cweId: "540", owasp: { code: "A01:2021" }, instances: [{ uri: "https://a.test/main.js.map" }] });
   });
 });

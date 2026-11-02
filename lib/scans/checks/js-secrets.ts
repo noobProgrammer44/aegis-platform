@@ -1,5 +1,6 @@
 import { load } from "cheerio";
 import type { ThreatLevel } from "@/types/aegis";
+import { OWASP } from "@/lib/domain/owasp";
 import type { Finding } from "@/types/recon";
 
 /**
@@ -106,6 +107,11 @@ export function evaluateJsExposure(host: string, hits: readonly SecretHit[], map
           ? "Browser keys are public by design: restrict this key to your domains and APIs in its console."
           : "Revoke and rotate the key now, then move the call that needs it to your server.",
       category: "js-secrets",
+      details: {
+        cweId: "798",
+        owasp: OWASP.hardCodedCredentials,
+        instances: group.map((h) => ({ uri: h.url, evidence: h.masked })),
+      },
     };
   });
   const mapFindings: Finding[] =
@@ -119,6 +125,7 @@ export function evaluateJsExposure(host: string, hits: readonly SecretHit[], map
             description: `${maps.length} source map${maps.length === 1 ? "" : "s"} can be downloaded (${maps.slice(0, 3).join(", ")}), exposing original source code, comments and internal paths.`,
             recommendation: "Don't deploy .map files to production, or restrict them to your error-tracking service.",
             category: "js-secrets",
+            details: { cweId: "540", owasp: OWASP.sensitiveInfoInSource, instances: maps.map((uri) => ({ uri })) },
           },
         ];
   return [...secretFindings, ...mapFindings];
