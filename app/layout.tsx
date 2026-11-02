@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aegis — Attack Surface Scanner",
+  title: "Aegis · Attack Surface Scanner",
   description:
     "External attack surface assessment: discover, probe, fingerprint, and triage a domain's exposure.",
 };
