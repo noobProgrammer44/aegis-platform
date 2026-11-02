@@ -113,6 +113,6 @@ problem, and the stakeholder doc presents Aegis as its own product.
 | nmap | installed (Homebrew) |
 | sslyze | installed (pipx) |
 | Juice Shop image | pulled |
-| ZAP image (`zaproxy/zap-stable`) | pull was still running at handoff |
+| ZAP image (`zaproxy/zap-stable`) | pulled (3.6 GB) |
 | Docker | 29.x running |
 | Node | 23.11 (repo targets Node 20+, teammate machine on 24) |
