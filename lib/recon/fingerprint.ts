@@ -1,7 +1,9 @@
 import { load } from "cheerio";
 import pLimit from "p-limit";
 import wappalyzer from "simple-wappalyzer";
+import { fetch, type Headers } from "undici";
 import { delay, intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
+import { hasProxy, nextProxyDispatcher, proxyList } from "@/lib/recon/proxy";
 import type { Fingerprint, LiveHost } from "@/types/recon";
 
 /**
@@ -77,6 +79,11 @@ export async function fingerprint(
   }
 
   const profile = intensityProfile(intensityValue);
+  if (hasProxy()) {
+    console.info(
+      `[proxy] fingerprint routing through ${proxyList().length} proxy(ies)`,
+    );
+  }
   const limit = pLimit(profile.concurrency);
   return Promise.all(
     hosts.map((host) =>
@@ -311,6 +318,7 @@ async function fetchResource(
       redirect: "follow",
       signal: controller.signal,
       headers: { "User-Agent": UA },
+      dispatcher: nextProxyDispatcher()?.dispatcher,
     });
     const body = await res.text();
     return { url: res.url || url, status: res.status, headers: res.headers, body };

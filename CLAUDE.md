@@ -136,6 +136,30 @@ scope + authorization note, executive summary (risk score + severity counts),
 findings grouped by severity, open-ports table, detected technologies/versions, and
 a methodology section. The UI's **Download report** button saves it as a `.md` file.
 
+## Proxy support (anti-block, opt-in)
+
+Optional, env-configured, **off by default**. Set `PROXY_URL="http://host:port"`
+(single) or `PROXY_LIST="http://a:1,socks5://b:2"` (rotated round-robin) in
+`.env.local`. Supports HTTP(S) and SOCKS4/5 (`lib/recon/proxy.ts`). When set, the
+**active** stages route through it: probe + fingerprint via an undici dispatcher,
+the port scan via SOCKS / HTTP-CONNECT, and nuclei via its native `-proxy` flag
+(which rotates the list). Only active (authorization-gated) stages use the proxy,
+and its use is logged at stage start — so proxy use sits behind the auth tier.
+Passive discovery never uses it.
+
+## WAF / block detection
+
+Active stages detect when a target is fronted by a WAF/CDN or is throttling the
+scan (`lib/recon/waf.ts`): vendor signatures in headers (Cloudflare `cf-ray`,
+Akamai, CloudFront, Fastly, Sucuri, Imperva, F5, Vercel, Netlify), block status
+codes (429/503), challenge-page bodies, and nuclei's host-unresponsive skip. When
+detected it emits an **INFO / recon** finding — *"Target behind WAF/CDN — active
+scan depth limited"* — naming the signal, surfaced in the findings table like any
+other finding. The deep (nuclei) stage degrades gracefully to a **`partial`**
+status (not a hard error); the UI labels it *"Deep scan partial — target
+throttled/blocked."* A partial deep scan never discards the other stages' findings
+or the risk score.
+
 ## Tech stack & layout
 
 - **Framework:** Next.js 15.5.x, App Router (`app/`), TypeScript, Tailwind CSS v4, ESLint

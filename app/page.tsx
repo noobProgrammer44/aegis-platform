@@ -1101,7 +1101,7 @@ function FindingsBody({
           <p className="mb-3 rounded-lg border border-caution-border bg-caution-bg px-3.5 py-2.5 text-[13px] leading-relaxed text-text-dim">
             <span className="font-medium text-caution">
               {result.nuclei.status === "partial"
-                ? "Deep scan incomplete."
+                ? "Deep scan partial —"
                 : "nuclei skipped."}
             </span>{" "}
             {result.nuclei.message ?? "Showing header/path findings only."}

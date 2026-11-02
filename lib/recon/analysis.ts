@@ -1,5 +1,6 @@
 import tls from "node:tls";
 import pLimit from "p-limit";
+import { detectWaf, wafFinding } from "@/lib/recon/waf";
 import type { Finding, Fingerprint, LiveHost, Severity } from "@/types/recon";
 
 /**
@@ -95,6 +96,11 @@ export async function analyze(
       limit(async () => {
         const fp = fpByHost.get(host.url);
         const findings: Finding[] = [];
+        // WAF/CDN recon: identify a fronting WAF/CDN or an active throttle/block.
+        const waf = detectWaf(host.headers ?? {}, host.status);
+        if (waf.vendor || host.status === 429 || host.status === 503) {
+          findings.push(wafFinding(host.url, waf));
+        }
         findings.push(...checkSecurityHeaders(host));
         const tls = await checkTls(host);
         if (tls) findings.push(tls);

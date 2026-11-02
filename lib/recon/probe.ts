@@ -1,6 +1,8 @@
 import { load } from "cheerio";
 import pLimit from "p-limit";
+import { fetch } from "undici";
 import { delay, intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
+import { hasProxy, nextProxyDispatcher, proxyList } from "@/lib/recon/proxy";
 import type { LiveHost, Subdomain } from "@/types/recon";
 
 /**
@@ -27,6 +29,9 @@ export async function probe(
   }
 
   const profile = intensityProfile(intensityValue);
+  if (hasProxy()) {
+    console.info(`[proxy] probe routing through ${proxyList().length} proxy(ies)`);
+  }
   const targets = subdomains.filter((s) => s.resolves);
   const limit = pLimit(profile.concurrency);
 
@@ -67,6 +72,7 @@ async function probeOne(url: string, ip: string): Promise<LiveHost | null> {
       redirect: "follow",
       signal: controller.signal,
       headers: { "User-Agent": "aegis-eass/0.1 (+active-probe)" },
+      dispatcher: nextProxyDispatcher()?.dispatcher,
     });
 
     const body = await res.text();

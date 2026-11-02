@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import readline from "node:readline";
 import { intensityProfile, type ScanIntensity } from "@/lib/recon/intensity";
+import { hasProxy, proxyList } from "@/lib/recon/proxy";
+import { detectWaf, wafFinding } from "@/lib/recon/waf";
 import type { Finding, LiveHost, Severity } from "@/types/recon";
 
 /**
@@ -128,6 +130,14 @@ export async function runNucleiStream(
     "5",
   ];
 
+  if (hasProxy()) {
+    // nuclei natively rotates across a comma-separated proxy list (HTTP + SOCKS).
+    args.push("-proxy", proxyList().join(","));
+    console.info(
+      `[proxy] nuclei routing through ${proxyList().length} proxy(ies)`,
+    );
+  }
+
   const fallbackHost = hosts[0].url;
 
   return new Promise<StreamStatus>((resolve) => {
@@ -198,10 +208,17 @@ export async function runNucleiStream(
             "nuclei hit the time limit. Partial results are shown — re-run or narrow the target.",
         });
       } else if (hostSkipped) {
+        // Emit the throttle/block as a recon finding (deduped against the
+        // header-based WAF finding from analysis).
+        const waf = detectWaf(hosts[0].headers ?? {}, hosts[0].status);
+        waf.signals.push(
+          "nuclei marked the host unresponsive after repeated errors (throttled/blocked)",
+        );
+        callbacks.onFinding(wafFinding(fallbackHost, waf));
         resolve({
           status: "partial",
           message:
-            "Deep scan was cut short — the target throttled or blocked nuclei (common for a WAF, CDN, or managed host). Header, path, and TLS findings are unaffected.",
+            "Target throttled or blocked the scan (common for a WAF, CDN, or managed host). Header, path, and TLS findings are unaffected.",
         });
       } else {
         resolve({ status: "ok" });

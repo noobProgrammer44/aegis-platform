@@ -59,6 +59,8 @@ export interface Finding {
   severity: Severity;
   description: string;
   recommendation: string;
+  /** Optional grouping, e.g. "recon", "network". */
+  category?: string;
   /** Set for port-scan findings. */
   port?: number;
   service?: string;
