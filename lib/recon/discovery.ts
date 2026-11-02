@@ -1,6 +1,7 @@
 import { Resolver } from "node:dns/promises";
 import pLimit from "p-limit";
 import type { Subdomain } from "@/types/recon";
+import { runSubfinder } from "./subfinder";
 
 /**
  * Stage 1 — Discovery (fully PASSIVE).
@@ -25,7 +26,15 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export const DNS_RESOLVE_CAP = 75;
 
 export async function discover(domain: string): Promise<Subdomain[]> {
-  const names = await fetchCrtShSubdomains(domain);
+  // Two passive sources in parallel: crt.sh is often overloaded, subfinder covers
+  // many other sources. Either one succeeding is enough; results are merged.
+  const [crt, sub] = await Promise.allSettled([fetchCrtShSubdomains(domain), runSubfinder(domain)]);
+  const fromSubfinder = sub.status === "fulfilled" && sub.value.status === "ok" ? sub.value.names : null;
+  if (crt.status === "rejected" && !fromSubfinder) {
+    const why = sub.status === "fulfilled" && sub.value.status !== "ok" ? ` subfinder: ${sub.value.message}` : "";
+    throw new Error(`${crt.reason instanceof Error ? crt.reason.message : String(crt.reason)}${why}`);
+  }
+  const names = [...new Set([...(crt.status === "fulfilled" ? crt.value : []), ...(fromSubfinder ?? [])])].sort();
 
   const resolver = new Resolver({ timeout: DNS_TIMEOUT_MS, tries: 1 });
   const limit = pLimit(DNS_CONCURRENCY);
