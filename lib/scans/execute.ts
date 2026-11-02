@@ -1,7 +1,7 @@
 import { nowIso, type DB } from "@/lib/db/client";
 import { listAcceptanceRules } from "@/lib/db/repos/acceptance-rules";
 import { appendAudit } from "@/lib/db/repos/audit-log";
-import { upsertDiscoveredDomain } from "@/lib/db/repos/discovered-domains";
+import { listDiscoveredDomains, upsertDiscoveredDomain } from "@/lib/db/repos/discovered-domains";
 import { listRisks, saveRisks } from "@/lib/db/repos/risks";
 import { addScanResult } from "@/lib/db/repos/scan-results";
 import { listVerifiedAuthorizations } from "@/lib/db/repos/authorizations";
@@ -29,6 +29,7 @@ type TargetOutcome =
 async function runTarget(
   scanner: Scanner,
   target: Target,
+  relatedHosts: readonly string[],
   authorizations: readonly Authorization[],
   intensity: ScanIntensity,
   signal: AbortSignal,
@@ -39,7 +40,7 @@ async function runTarget(
     if (!gate.allowed) return { target, label: target.target, skipped: gate.reason ?? "Not authorized.", blocked: true };
   }
   try {
-    const output = await scanner.run({ target, intensity, signal, progress });
+    const output = await scanner.run({ target, relatedHosts, intensity, signal, progress });
     return output.skipped
       ? { target, label: target.target, skipped: output.skipped, blocked: false }
       : { target, output };
@@ -47,6 +48,15 @@ async function runTarget(
     const message = err instanceof Error ? err.message : "Scanner failed.";
     return { target, label: target.target, skipped: message, blocked: false };
   }
+}
+
+const MAX_RELATED_HOSTS = 200;
+
+/** Subdomains discovery found through this target, for checks that look beyond it. */
+function relatedHostsOf(db: DB, workspaceId: string, target: Target): string[] {
+  return listDiscoveredDomains(db, workspaceId, { viaTargetId: target.id })
+    .slice(0, MAX_RELATED_HOSTS)
+    .map((d) => d.name);
 }
 
 export async function executeScan(
@@ -75,7 +85,7 @@ export async function executeScan(
       update({ progress: Math.round((index / queued.targetIds.length) * 90), progressMessage: `${target?.target ?? targetId}: ${message}` });
     outcomes.push(
       target
-        ? await runTarget(scanner, target, authorizations, queued.intensity, signal, step)
+        ? await runTarget(scanner, target, relatedHostsOf(db, ws, target), authorizations, queued.intensity, signal, step)
         : { target: null, label: queued.targets[index] ?? targetId, skipped: "Target was deleted.", blocked: false },
     );
   }

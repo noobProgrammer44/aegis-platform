@@ -1,41 +1,16 @@
-import type { DiscoveredDomainInput } from "@/lib/db/repos/discovered-domains";
 import { analyze } from "@/lib/recon/analysis";
 import { discover } from "@/lib/recon/discovery";
 import { fingerprint } from "@/lib/recon/fingerprint";
-import type { ScanIntensity } from "@/lib/recon/intensity";
 import { runNucleiStream } from "@/lib/recon/nuclei";
 import { scanPorts } from "@/lib/recon/ports";
 import { probe } from "@/lib/recon/probe";
-import type { DetectedRisk, ScanType, Target } from "@/types/aegis";
 import type { Finding, LiveHost } from "@/types/recon";
-import { SCANNER_CATALOG, type ScannerInfo } from "./catalog";
-import { toDetectedRisks } from "./findings";
-import { discoveryDomain, hostsForTarget, toSubdomains } from "./target-hosts";
+import { SCANNER_CATALOG } from "../catalog";
+import { toDetectedRisks } from "../findings";
+import { discoveryDomain, hostsForTarget, toSubdomains } from "../target-hosts";
+import type { Scanner } from "./types";
 
-/**
- * Scanner adapters: each wraps existing recon stages (lib/recon) behind one interface
- * the runner understands. Active scanners are only called after the gate allows them.
- */
-
-export interface ScannerContext {
-  target: Target;
-  intensity: ScanIntensity;
-  signal: AbortSignal;
-  progress: (message: string) => void;
-}
-
-export interface ScannerOutput {
-  risks: readonly DetectedRisk[];
-  discovered: readonly DiscoveredDomainInput[];
-  /** Raw stage output, stored as the scan's downloadable results. */
-  raw: unknown;
-  /** Why this target was not scanned (not applicable, tool unavailable). */
-  skipped?: string;
-}
-
-export interface Scanner extends ScannerInfo {
-  run(ctx: ScannerContext): Promise<ScannerOutput>;
-}
+/** Adapters over the existing recon stages (lib/recon): web surface, ports, nuclei, discovery. */
 
 const EMPTY = { risks: [], discovered: [] } as const;
 
@@ -125,9 +100,4 @@ const nuclei: Scanner = {
   },
 };
 
-export const SCANNERS: Partial<Record<ScanType, Scanner>> = {
-  DISCOVERY: discovery,
-  SURFACE: surface,
-  NMAP: ports,
-  NUCLEI: nuclei,
-};
+export const RECON_SCANNERS = { discovery, surface, ports, nuclei };
