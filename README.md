@@ -18,6 +18,7 @@ HostedScan's layout and features under Aegis's own name and design.
 |---|---|---|
 | Node.js 20+ | runs the app | `node -v` |
 | Docker | nuclei and ZAP scanners, Juice Shop test target | `docker --version` |
+| subfinder (optional) | second subdomain source when crt.sh is down: `go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest` | `subfinder -version` |
 | Git | | |
 
 ### Install and run
@@ -25,7 +26,7 @@ HostedScan's layout and features under Aegis's own name and design.
 ```bash
 git clone https://github.com/noobProgrammer44/aegis.git
 cd aegis
-git checkout feat/hostedscan-parity     # the platform branch (main = original single page)
+git checkout aegis-platform     # the platform branch (main = original single page)
 npm install
 
 # A safe, intentionally vulnerable target to practise on (port 3100)
@@ -40,7 +41,7 @@ Open **http://localhost:3001**. You land on the Dashboard.
 ### One-time extras (optional)
 
 ```bash
-# nuclei templates, so the first nuclei scan has something to run
+# nuclei templates (Aegis also downloads them automatically before the first nuclei scan)
 docker run --rm -v aegis-nuclei:/root projectdiscovery/nuclei:latest -update-templates
 
 # Sample data to explore the UI, kept in data/demo.db (never touches your real data)
@@ -63,7 +64,7 @@ AEGIS_DB_PATH=data/demo.db npm run dev -- -p 3001
 
 | Screen | What you do there |
 |---|---|
-| **Dashboard** | Health score (0 best, 1000 worst, graded A–F), risks by severity, recent scans / risks / discovered domains, most vulnerable target, 30-day trend. Period selector filters the recent lists. |
+| **Dashboard** | Health score (0 best, 1000 worst, graded A–F), risks by severity, recent scans / risks / discovered domains, most vulnerable target, 30-day trend. Period selector filters the recent lists; the target picker narrows the whole dashboard to one target. |
 | **Quick scan** | One-off scan of one host without saving it (Jay's radar UI + Amaan's pipeline): discovery → probe → ports → fingerprint → analysis → optional nuclei. Download a Markdown report. Turn on **Active scan** for anything beyond passive DNS. |
 | **Targets** | Add one or many targets (domain, URL, IPv4, `host:port`, CIDR up to /24), tag and label them, see grade and open risks. Click a target for its **Authorization** panel, risks, scans and metadata. **Discovered domains** tab: subdomains found by discovery; **Add as target** in one click. |
 | **Scans** | **New scan**: choose scanners, targets and intensity (Polite / Normal / Aggressive). Running scans update live; stop or delete them; open one for skipped targets (with reasons), new / still open / closed counts and raw result files. |
@@ -80,7 +81,7 @@ AEGIS_DB_PATH=data/demo.db npm run dev -- -p 3001
 | Web surface | active | probe, technology fingerprint, security headers, TLS expiry, exposed paths, WAF / block detection |
 | Port scan | active | TCP connect to ~90 common ports; exposed databases / admin services rated HIGH |
 | Nuclei vulnerability | active | Docker; scoped templates (medium+, exposures, misconfig, default logins) |
-| Subdomain discovery | passive | certificate transparency (crt.sh) + DNS; results go to Targets → Discovered |
+| Subdomain discovery | passive | crt.sh certificate transparency + subfinder (if installed), merged, then DNS; works if either source answers; results go to Targets → Discovered |
 | TLS / SSL | active | certificate expiry, trust chain, hostname match, weak keys, legacy TLS 1.0 / 1.1 (pure Node) |
 | JS secrets & source maps | active | API keys / private keys in first-party JavaScript (stored masked, never in full) and downloadable `.map` files |
 | OWASP ZAP baseline | active | Docker (`zaproxy/zap-stable`); crawls the site and applies ZAP's passive rules |
@@ -187,7 +188,8 @@ input, no secrets in code. Architecture notes for contributors are in `CLAUDE.md
 |---|---|
 | Port 3000 already in use | run Aegis with `-p 3001` and Juice Shop on 3100 |
 | "Active scanning is not authorized" | open the target on **Targets** and confirm authorization or verify DNS |
-| nuclei finds nothing | Docker running? Run the template update command above |
+| nuclei finds nothing | Docker running? Templates download on the first nuclei scan (about a minute); or run the update command above |
+| Subdomain discovery fails | crt.sh is often overloaded; install subfinder (see Prerequisites) and discovery uses it too |
 | ZAP is unavailable | start Docker and `docker pull zaproxy/zap-stable`; ZAP writes to `data/zap-runs/` (inside the project so Docker Desktop can share it) |
 | `httpx` behaves oddly | a Python `httpx` CLI can shadow ProjectDiscovery's; use `~/go/bin/httpx` |
 | Build breaks while dev runs | stop the dev server before `npm run build` |

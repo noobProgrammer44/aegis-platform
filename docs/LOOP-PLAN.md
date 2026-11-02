@@ -44,7 +44,7 @@ Feature research: `docs/hostedscan-reference/README.md`.
       auto-auth, audit log) and enforce it in the existing `/api/scan/*` routes.
 
 ### Scan engine
-- [ ] 4. Scanner framework + tool resolver (local binary / Docker / unavailable)
+- [x] 4. Scanner framework + tool resolver (local binary / Docker / unavailable)
       and adapters for the existing pipeline: Web surface (probe + fingerprint +
       headers + TLS expiry + exposed paths), Nuclei, Subdomain discovery (crt.sh +
       subfinder) feeding "Discovered domains".
@@ -205,3 +205,14 @@ Feature research: `docs/hostedscan-reference/README.md`.
   Docker scanners when Docker or the image is missing. Content checks use an undici
   agent that accepts bad certificates (TLS issues are reported by the TLS scanner).
   Live-tested on the real DB (fixture target removed afterwards).
+- 2026-11-03: New Scan wizard (4 steps, like HostedScan) + Scheduled Scans tab
+  (run now / pause / delete), schedules keep intensity (migration 3). nuclei now
+  downloads its templates before the first scan (it used to finish with 0 requests).
+  Discovery merges crt.sh with subfinder, so it works when crt.sh is down (finishes
+  the item-4 subfinder gap). Dashboard target filter (`?target=`).
+- 2026-11-03: live test on faclon.com and factwise.io (owned by Kartik, attested;
+  polite; ZAP passive only). All 9 scanners ran. Fixed the false positives it showed:
+  Cloudflare 403 counted as an exposed .git/config / .env, soft-404 catch-all pages
+  counted as /admin, /swagger, /api-docs, Cloudflare edge ports labelled cPanel, and
+  a P-256 EC key reported as a "weak 256-bit RSA key". nuclei was throttled by
+  Cloudflare / Netlify: scans now report "Partial" and keep unchecked risks open.

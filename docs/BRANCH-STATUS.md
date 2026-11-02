@@ -37,6 +37,8 @@ npm test                        # 161 tests
 | Dashboard, Targets, Scans, Risks, Reports, Audit log, Help | `app/(app)/*`, `components/*` | each screen checked in the browser on real data; actions (add / accept / rules / generate report / CSV + JSON downloads) exercised |
 | Quick scan after merging Jay + Amaan | `app/(app)/quick-scan` | full scan of `localhost:3100` in the browser, report download via API |
 | 5 new scanners: TLS, JS secrets & source maps, OWASP ZAP baseline / full, email security (SPF / DMARC), domain takeover | `lib/scans/checks/*`, `lib/scans/scanners/extra.ts` | 17 unit tests on the pure parts; live through the Scans page: TLS found a self-signed + expiring cert on a local HTTPS server, JS secrets found a planted fake key (stored masked only) and a source map, ZAP baseline produced 9 findings on Juice Shop, email / takeover ran on example.com; unauthorized targets skipped with reasons |
+| New Scan wizard + Scheduled Scans tab, dashboard target filter | `app/(app)/scans/new`, `components/scans/wizard/`, `lib/services/scan-requests.ts`, `lib/services/dashboard.ts` | service tests; wizard driven end to end in the browser |
+| Live run on real domains (faclon.com, factwise.io, owned, attested, polite) | all 9 scanners | nuclei templates auto-download, subfinder + crt.sh discovery (60 / 17 names), false positives fixed (Cloudflare 403 / soft 404 exposed paths, Cloudflare edge ports, EC keys), WAF-throttled nuclei reported as Partial |
 | Integrations | `app/(app)/integrations` | **preview mock only**, nothing saved or sent |
 
 Gate before every commit: `npx tsc --noEmit`, `npm run lint`, `npm test`,
@@ -44,7 +46,6 @@ Gate before every commit: `npx tsc --noEmit`, `npm run lint`, `npm test`,
 
 ## Not tested yet
 
-- nuclei through the platform scan runner (it works in Quick scan)
 - a scheduled scan firing live (the scheduler is unit-tested only)
 - DNS verification succeeding against a real domain (only tested with a fake resolver)
 - Windows
@@ -56,6 +57,10 @@ Gate before every commit: `npx tsc --noEmit`, `npm run lint`, `npm test`,
   host must be added on Targets and attested or DNS-verified first. The
   `activeAllowed` flag is still read, but it can no longer authorize anything on
   its own.
+- Surface scan exposed-path rules moved to `lib/recon/exposed-paths.ts` (2xx only,
+  content signatures for .git/config and .env, soft-404 baseline). The port scan
+  labels Cloudflare-proxied ports as "Cloudflare edge" (`lib/recon/cdn-edge.ts`).
+  Quick scan gets both fixes too.
 - The platform scanners call `probe`, `fingerprint`, `analyze`, `scanPorts` and
   `runNucleiStream` directly. If you change their signatures, also update
   `lib/scans/scanners/recon.ts`.
