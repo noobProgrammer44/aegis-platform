@@ -10,6 +10,45 @@ HostedScan's layout and features under Aegis's own name and design.
 
 ---
 
+## Screenshots
+
+> Demo data on reserved `example.com` / `example.org` domains — no real targets.
+
+**Dashboard** — health score, risk breakdown, and recent activity at a glance.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Risks** — every finding across your targets, ranked by severity, with triage and accept.
+
+![Risks](docs/screenshots/risks.png)
+
+**Targets** — the domains, URLs and IP ranges you track, with health and authorization state.
+
+![Targets](docs/screenshots/targets.png)
+
+<details>
+<summary>More views — Scans, Reports, Integrations, Audit log</summary>
+
+**Scans**
+
+![Scans](docs/screenshots/scans.png)
+
+**Reports**
+
+![Reports](docs/screenshots/reports.png)
+
+**Integrations**
+
+![Integrations](docs/screenshots/integrations.png)
+
+**Audit log**
+
+![Audit log](docs/screenshots/audit-log.png)
+
+</details>
+
+---
+
 ## 1. Quick start
 
 ### Prerequisites
